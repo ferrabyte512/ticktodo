@@ -246,9 +246,18 @@ private fun NavHostController.navigateTopLevel(item: TopLevel) {
         TopLevel.UPCOMING -> ScopeRoute("upcoming")
         TopLevel.BROWSE -> BrowseRoute
     }
+    val currentScopeKey = currentBackStackEntry?.takeIf { it.destination.hasRoute<ScopeRoute>() }
+        ?.toRoute<ScopeRoute>()?.scopeKey
+    val targetScopeKey = (route as? ScopeRoute)?.scopeKey
+    val isSameDestination = if (targetScopeKey != null) {
+        currentScopeKey == targetScopeKey
+    } else {
+        currentBackStackEntry?.destination?.hasRoute<BrowseRoute>() == true
+    }
+
     navigate(route) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
+        launchSingleTop = isSameDestination
         restoreState = true
     }
 }
