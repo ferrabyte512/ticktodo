@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tick ToDo</string>
+
+    <!-- Navigation and scopes -->
+    <string name="scope_today">Today</string>
+    <string name="scope_upcoming">Upcoming</string>
+    <string name="scope_inbox">Inbox</string>
+    <string name="scope_all">All tasks</string>
+    <string name="scope_completed">Completed</string>
+    <string name="nav_browse">Browse</string>
+    <string name="browse_lists">Lists</string>
+    <string name="section_overdue">Overdue</string>
+
+    <!-- Dates -->
+    <string name="date_today">Today</string>
+    <string name="date_tomorrow">Tomorrow</string>
+    <string name="date_yesterday">Yesterday</string>
+    <string name="pick_date">Pick date</string>
+    <string name="pick_time">Pick time</string>
+    <string name="value_none">None</string>
+    <string name="value_all_day">All day</string>
+
+    <!-- Actions -->
+    <string name="action_add_task">Add task</string>
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_ok">OK</string>
+    <string name="action_save">Save</string>
+    <string name="action_save_and_close">Save and close</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_complete">Complete</string>
+    <string name="action_snooze">Snooze 15 min</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_search">Search</string>
+    <string name="action_sort">Sort</string>
+    <string name="action_move">Move to list</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_clear_selection">Clear selection</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="action_clear_field">Clear %1$s</string>
+    <string name="action_remove_tag">Remove tag %1$s</string>
+    <string name="action_delete_subtask">Delete subtask %1$s</string>
+    <string name="action_new_list">New list</string>
+    <string name="action_edit_list">Edit list</string>
+    <string name="action_fix">Fix</string>
+    <string name="action_sync_now">Sync now</string>
+    <string name="action_sign_out">Sign out</string>
+    <string name="action_delete_account">Delete account</string>
+
+    <!-- Sorting -->
+    <string name="sort_due">Due date</string>
+    <string name="sort_priority">Priority</string>
+    <string name="sort_created">Recently added</string>
+    <string name="sort_title">Title</string>
+
+    <!-- Priority -->
+    <string name="priority_none">None</string>
+    <string name="priority_low">Low</string>
+    <string name="priority_medium">Medium</string>
+    <string name="priority_high">High</string>
+
+    <!-- Quick add -->
+    <string name="quick_add_hint">What do you need to do?</string>
+    <string name="quick_add_tag_hint">Add #tags right in the title</string>
+    <string name="quick_add_more">More options</string>
+    <string name="quick_add_added">Added: %1$s</string>
+
+    <!-- Editor -->
+    <string name="field_title">Title</string>
+    <string name="field_due_date">Due date</string>
+    <string name="field_time">Time</string>
+    <string name="field_reminder">Reminder</string>
+    <string name="field_repeat">Repeat</string>
+    <string name="field_list">List</string>
+    <string name="field_list_name">List name</string>
+    <string name="field_priority">Priority</string>
+    <string name="field_tags">Tags</string>
+    <string name="field_notes">Notes</string>
+    <string name="field_subtasks">Subtasks</string>
+    <string name="notes_hint">Add details</string>
+    <string name="tag_hint">Add a tag and press Enter</string>
+    <string name="subtask_hint">Add a subtask</string>
+    <string name="subtask_progress">%1$d/%2$d</string>
+    <string name="error_title_required">A title is required</string>
+    <string name="editor_pending_sync">Saved on this device. Waiting to sync.</string>
+    <string name="editor_synced">Saved and synced.</string>
+    <string name="warning_notifications_off">Notifications are turned off, so this reminder will not appear.</string>
+    <string name="warning_exact_alarms_off">"Alarms &amp; reminders" access is off, so Android may deliver this reminder late.</string>
+
+    <!-- Reminders and repeat -->
+    <string name="reminder_at_time">At time of task</string>
+    <plurals name="reminder_minutes_before">
+        <item quantity="one">%d minute before</item>
+        <item quantity="other">%d minutes before</item>
+    </plurals>
+    <plurals name="reminder_hours_before">
+        <item quantity="one">%d hour before</item>
+        <item quantity="other">%d hours before</item>
+    </plurals>
+    <plurals name="reminder_days_before">
+        <item quantity="one">%d day before</item>
+        <item quantity="other">%d days before</item>
+    </plurals>
+    <string name="repeat_never">Does not repeat</string>
+    <string name="repeat_daily">Every day</string>
+    <string name="repeat_weekdays">Every weekday</string>
+    <string name="repeat_weekly">Every week</string>
+    <string name="repeat_monthly">Every month</string>
+    <string name="repeat_yearly">Every year</string>
+    <plurals name="repeat_every_n_days">
+        <item quantity="one">Every %d day</item>
+        <item quantity="other">Every %d days</item>
+    </plurals>
+    <plurals name="repeat_every_n_weeks">
+        <item quantity="one">Every %d week</item>
+        <item quantity="other">Every %d weeks</item>
+    </plurals>
+    <plurals name="repeat_every_n_months">
+        <item quantity="one">Every %d month</item>
+        <item quantity="other">Every %d months</item>
+    </plurals>
+    <plurals name="repeat_every_n_years">
+        <item quantity="one">Every %d year</item>
+        <item quantity="other">Every %d years</item>
+    </plurals>
+
+    <!-- Empty states -->
+    <string name="empty_today_title">Nothing due today</string>
+    <string name="empty_today_body">Tap Add task to capture something. Tasks with today\'s date or an earlier one show up here.</string>
+    <string name="empty_upcoming_title">Nothing scheduled</string>
+    <string name="empty_upcoming_body">Tasks with a future due date appear here, grouped by day.</string>
+    <string name="empty_completed_title">No completed tasks yet</string>
+    <string name="empty_completed_body">Completed tasks are kept here so you can reopen them.</string>
+    <string name="empty_list_title">No tasks here</string>
+    <string name="empty_list_body">Tap Add task to create one.</string>
+    <string name="search_hint">Search tasks</string>
+    <string name="search_empty_title">No matches</string>
+    <string name="search_empty_body">Search looks at titles, notes and tags.</string>
+
+    <!-- Status and messages -->
+    <string name="status_offline">Offline. Changes are saved on this device.</string>
+    <string name="status_offline_pending">Offline. %1$d changes will sync when you reconnect.</string>
+    <string name="msg_completed">Completed</string>
+    <string name="msg_completed_repeating">Completed. The next one is scheduled.</string>
+    <string name="msg_completed_many">Completed %1$d tasks</string>
+    <string name="msg_deleted">Deleted</string>
+    <string name="msg_account_deleted">Your account and data were deleted.</string>
+    <string name="error_invalid_task">That task could not be saved. Check the title and try again.</string>
+    <string name="error_invalid_list">List names need 1 to 60 characters.</string>
+    <plurals name="selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+
+    <!-- Dialogs -->
+    <string name="confirm_delete_task_title">Delete this task?</string>
+    <string name="confirm_delete_task_body">The task and its subtasks will be removed from all your devices. You can undo right after.</string>
+    <string name="confirm_delete_list_title">Delete “%1$s”?</string>
+    <string name="confirm_delete_list_body">The list is removed. Its tasks are kept and moved to the Inbox.</string>
+    <string name="confirm_sign_out_title">Sign out?</string>
+    <string name="confirm_sign_out_body">Your tasks stay in your account. They are removed from this device until you sign in again.</string>
+    <plurals name="confirm_sign_out_pending">
+        <item quantity="one">%d change has not synced yet and will be lost if you sign out now. Connect to the internet and wait for sync to finish to keep it.</item>
+        <item quantity="other">%d changes have not synced yet and will be lost if you sign out now. Connect to the internet and wait for sync to finish to keep them.</item>
+    </plurals>
+    <string name="confirm_delete_account_title">Delete your account?</string>
+    <string name="confirm_delete_account_body">This permanently deletes your Tick ToDo account and every task and list stored in it, on all devices. You will be asked to confirm your Google account. This cannot be undone.</string>
+    <string name="delete_account_summary">Permanently remove your account and all of its data</string>
+    <string name="delete_error_wrong_account">Please confirm with the same Google account you are signed in with.</string>
+    <string name="delete_error_generic">The account could not be deleted. Nothing was removed from this device. Try again.</string>
+
+    <!-- Sign in -->
+    <string name="signin_tagline">Plan your day, schedule tasks with reminders, and finish them with focus sessions.</string>
+    <string name="signin_feature_offline">Add and edit tasks without a connection</string>
+    <string name="signin_feature_reminders">Reminders that arrive on time, with a checklist to keep them reliable</string>
+    <string name="signin_feature_sync">Your tasks on every Android device you sign in to</string>
+    <string name="signin_feature_focus">Focus timer with breaks, for the tasks you choose</string>
+    <string name="signin_feature_widgets">Home-screen widgets for today, upcoming and any list</string>
+    <string name="signin_button">Continue with Google</string>
+    <string name="signin_consent">Signing in creates an account that stores your tasks in the cloud so they sync between your devices.</string>
+    <string name="signin_not_configured">This build has no Firebase configuration. See the README to add google-services.json.</string>
+    <string name="signin_error_no_account">No Google account is available. Add one in your device settings and try again.</string>
+    <string name="signin_error_network">You appear to be offline. Check your connection and try again.</string>
+    <string name="signin_error_generic">Sign-in did not complete. Please try again.</string>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="terms">Terms of service</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_account">Account</string>
+    <string name="settings_sync">Sync</string>
+    <string name="settings_reminders">Reminder health</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_dynamic_color">Use wallpaper colours</string>
+    <string name="settings_dynamic_color_body">Match the app colours to your wallpaper</string>
+    <string name="settings_default_reminder_time">Reminder time for all-day tasks</string>
+    <string name="settings_about">About</string>
+    <string name="settings_support">Contact support</string>
+    <string name="settings_licenses">Open-source licences</string>
+    <string name="settings_version">Version</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="sync_running">Syncing…</string>
+    <string name="sync_never">Not synced yet</string>
+    <string name="sync_last">Last synced %1$s</string>
+    <plurals name="sync_pending">
+        <item quantity="one">%d change waiting to sync</item>
+        <item quantity="other">%d changes waiting to sync</item>
+    </plurals>
+    <string name="reminder_health_intro">Android can delay or block reminders. Each item below should show a tick for reminders to arrive on time.</string>
+    <string name="health_notifications">Notifications</string>
+    <string name="health_notifications_off">Off. Reminders cannot be shown.</string>
+    <string name="health_exact">Alarms &amp; reminders</string>
+    <string name="health_exact_off">Off. Reminders may arrive late.</string>
+    <string name="health_allowed">Allowed</string>
+    <string name="health_battery">Battery usage</string>
+    <string name="health_battery_ok">Unrestricted</string>
+    <string name="health_battery_restricted">Optimised. Some phones delay reminders in this mode; choose \"Unrestricted\" for Tick ToDo if reminders are late.</string>
+    <string name="licenses_intro">Tick ToDo is built with these open-source components. Thank you to their authors.</string>
+    <string name="licenses_apache_note">The full text of the Apache License 2.0 is available at apache.org/licenses/LICENSE-2.0.</string>
+
+    <!-- Notifications -->
+    <string name="channel_reminders">Task reminders</string>
+    <string name="channel_reminders_description">Reminders for tasks you scheduled</string>
+    <string name="notification_public_title">Task reminder</string>
+    <string name="notification_due_at">Due %1$s</string>
+
+    <!-- Widget -->
+    <string name="widget_title">Today</string>
+    <string name="widget_description">Today\'s and overdue tasks</string>
+    <string name="widget_add">+ Add</string>
+    <string name="widget_empty">Nothing due today</string>
+    <string name="widget_signed_out">Open Tick ToDo to sign in</string>
+
+    <!-- Accessibility -->
+    <string name="a11y_mark_complete">Mark complete</string>
+    <string name="a11y_mark_incomplete">Mark not complete</string>
+    <string name="a11y_completed">Completed</string>
+    <string name="a11y_not_completed">Not completed</string>
+    <string name="a11y_pending_sync">Not synced yet</string>
+    <string name="a11y_list_options">Options for %1$s</string>
+    <string name="a11y_color_n">Colour %1$d</string>
+    <!-- Focus timer -->
+    <string name="focus_title">Focus timer</string>
+    <string name="focus_section">Focus timer</string>
+    <string name="focus_start">Start focus</string>
+    <string name="focus_start_session">Start focus session</string>
+    <string name="focus_pause">Pause</string>
+    <string name="focus_resume">Resume</string>
+    <string name="focus_skip">Skip</string>
+    <string name="focus_stop">Stop</string>
+    <string name="focus_paused">Paused</string>
+    <string name="focus_paused_left">Paused · %1$s left</string>
+    <string name="focus_phase_focus">Focus</string>
+    <string name="focus_phase_short_break">Short break</string>
+    <string name="focus_phase_long_break">Long break</string>
+    <string name="focus_round">Round %1$d</string>
+    <string name="focus_round_of">Round %1$d of %2$d</string>
+    <string name="focus_in_progress">In focus</string>
+    <string name="focus_minutes_short">%1$d min focus</string>
+    <string name="focus_mark_done">Mark task as done</string>
+    <string name="focus_setup_intro">Work in focused rounds with short breaks in between, and a longer break after a few rounds. Adjust it to suit this task.</string>
+    <string name="focus_save_for_task">Remember this plan for this task</string>
+    <string name="focus_other_running">A session is already running. Start one for “%1$s” instead?</string>
+    <string name="focus_switch_task">Switch to this task</string>
+    <string name="focus_pick_task">Open a task and choose Start focus session to begin.</string>
+    <string name="focus_stat_today">Focused today</string>
+    <string name="focus_stat_task">On this task</string>
+    <string name="focus_total_on_task">Focused on this task: %1$s</string>
+    <string name="focus_use_for_task">Use a focus timer for this task</string>
+    <string name="focus_use_for_task_body">Adds a start button to the task card and remembers your timings.</string>
+    <string name="focus_length">Focus</string>
+    <string name="focus_short_break">Short break</string>
+    <string name="focus_long_break">Long break</string>
+    <string name="focus_long_break_every">Long break after</string>
+    <string name="focus_total_rounds">Session length</string>
+    <string name="focus_until_stopped">Until stopped</string>
+    <string name="focus_auto_breaks">Start breaks automatically</string>
+    <string name="focus_auto_focus">Start next round automatically</string>
+    <string name="focus_preset">%1$d / %2$d min</string>
+    <string name="focus_plan_summary">%1$d min focus · %2$d min break · %3$d min long break</string>
+    <string name="focus_public_title">Focus session running</string>
+    <string name="focus_alert_focus_done">Focus round complete</string>
+    <string name="focus_alert_break_done">Break is over</string>
+    <string name="focus_alert_session_done">Focus session complete</string>
+    <string name="focus_alert_session_done_body">Nice work. Your focus time has been saved.</string>
+    <string name="focus_alert_started">%1$s started</string>
+    <string name="focus_alert_tap_to_start">Tap to start the %1$s</string>
+    <string name="channel_focus_timer">Focus timer</string>
+    <string name="channel_focus_timer_description">The running focus countdown</string>
+    <string name="channel_focus_alerts">Focus alerts</string>
+    <string name="channel_focus_alerts_description">Sound when a focus round or break ends</string>
+    <string name="duration_m">%1$d min</string>
+    <string name="duration_h_m">%1$d h %2$d min</string>
+    <string name="unit_min">min</string>
+    <string name="unit_rounds">rounds</string>
+    <string name="a11y_decrease">Decrease %1$s</string>
+    <string name="a11y_increase">Increase %1$s</string>
+    <string name="settings_default_focus_plan">Default focus plan</string>
+
+    <!-- Themes -->
+    <string name="settings_color_theme">Colour theme</string>
+    <string name="settings_theme_dynamic_note">Wallpaper colours are on, so the colour theme is not used.</string>
+    <string name="theme_jade">Jade</string>
+    <string name="theme_ocean">Ocean</string>
+    <string name="theme_sunset">Sunset</string>
+    <string name="theme_lavender">Lavender</string>
+    <string name="theme_rose">Rose</string>
+    <string name="theme_graphite">Graphite</string>
+
+    <!-- Sync problems -->
+    <string name="action_retry">Retry</string>
+    <string name="action_details">Details</string>
+    <string name="sync_err_access_title">Sync was refused by the server</string>
+    <string name="sync_err_access_body">Your changes are safe on this device. Tap Retry; if this keeps happening, contact support.</string>
+    <string name="sync_err_access_dev">Developer: Firestore returned PERMISSION_DENIED. Deploy firebase/firestore.rules (firebase deploy --only firestore). If App Check enforcement is on, register this build\'s debug token or turn enforcement off while testing.</string>
+    <string name="sync_err_signed_out_title">Sign-in expired</string>
+    <string name="sync_err_signed_out_body">Sign out and sign in again to resume syncing. Unsynced changes stay on this device until then.</string>
+    <string name="sync_err_db_title">Cloud storage is not set up yet</string>
+    <string name="sync_err_db_body">Your tasks are saved on this device and will sync once the service is available.</string>
+    <string name="sync_err_db_dev">Developer: the Firebase project has no Cloud Firestore database. Create it in Firebase console &gt; Firestore Database &gt; Create database (production mode), then deploy the rules.</string>
+    <string name="sync_err_busy_title">Sync service is busy</string>
+    <string name="sync_err_busy_body">Sync will retry automatically in a little while.</string>
+    <string name="sync_err_refused_title">Some changes could not be saved to the cloud</string>
+    <string name="sync_err_refused_body">They are kept on this device. Updating the app usually fixes this.</string>
+    <string name="sync_err_refused_dev">Developer: the security rules rejected a document. Make sure the deployed firestore.rules match this app version.</string>
+    <string name="sync_err_other_title">Sync did not finish</string>
+    <string name="sync_err_other_body">Your changes are safe on this device. Sync will retry automatically, or tap Retry.</string>
+
+    <!-- More widgets -->
+    <string name="widget_upcoming_description">Tasks due in the next 7 days</string>
+    <string name="widget_list_label">Task list</string>
+    <string name="widget_list_description">A list, tag or view of your choice</string>
+    <string name="widget_quick_add_description">Add a task in one tap</string>
+    <string name="widget_focus_description">Your running focus session</string>
+    <string name="widget_config_title">Show in this widget</string>
+    <string name="widget_list_missing">List removed</string>
+    <string name="widget_next_7_days">Next 7 days</string>
+    <string name="widget_focus_idle">Open a task and start a focus session.</string>
+    <string name="widget_focus_until">Until %1$s</string>
+</resources>

@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// Tick ToDo: every document lives under users/{uid} and only that user can
+// read or write it. Document shapes mirror RemoteMapper.kt.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function common(id) {
+      let d = request.resource.data;
+      return d.id == id
+        && d.schema is int
+        && d.createdAt is int
+        && d.updatedAt is int
+        && d.deleted is bool
+        && d.serverUpdatedAt == request.time
+        // Never overwrite a newer version (last-writer-wins, enforced server-side).
+        && (resource == null || d.updatedAt >= resource.data.updatedAt);
+    }
+
+    function validTask(id) {
+      let d = request.resource.data;
+      return common(id)
+        && d.keys().hasOnly(['id', 'schema', 'listId', 'parentId', 'title', 'notes', 'priority',
+             'dueEpochDay', 'dueMinuteOfDay', 'reminderOffsetMinutes', 'recurrence', 'tags',
+             'completed', 'completedAt', 'createdAt', 'updatedAt', 'deleted', 'serverUpdatedAt', 'focusPlan'])
+        && d.title is string && d.title.size() >= 1 && d.title.size() <= 500
+        && d.notes is string && d.notes.size() <= 10000
+        && d.priority is int && d.priority >= 0 && d.priority <= 3
+        && d.completed is bool
+        && d.tags is list && d.tags.size() <= 20
+        && (d.listId == null || (d.listId is string && d.listId.size() <= 64))
+        && (d.parentId == null || (d.parentId is string && d.parentId.size() <= 64))
+        && (d.dueEpochDay == null || d.dueEpochDay is int)
+        && (d.dueMinuteOfDay == null || (d.dueMinuteOfDay is int && d.dueMinuteOfDay >= 0 && d.dueMinuteOfDay < 1440))
+        && (d.reminderOffsetMinutes == null || (d.reminderOffsetMinutes is int && d.reminderOffsetMinutes >= 0 && d.reminderOffsetMinutes <= 10080))
+        && (d.recurrence == null || (d.recurrence is string && d.recurrence.size() <= 100))
+        && (d.completedAt == null || d.completedAt is int)
+        // Optional (added in app schema 1 / v1.1); older documents do not have it.
+        && (d.get('focusPlan', null) == null || (d.focusPlan is string && d.focusPlan.size() <= 60));
+    }
+
+    function validList(id) {
+      let d = request.resource.data;
+      return common(id)
+        && d.keys().hasOnly(['id', 'schema', 'name', 'colorIndex', 'createdAt', 'updatedAt', 'deleted', 'serverUpdatedAt'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+        && d.colorIndex is int && d.colorIndex >= 0 && d.colorIndex <= 11;
+    }
+
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+
+      match /tasks/{taskId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validTask(taskId);
+      }
+
+      match /lists/{listId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validList(listId);
+      }
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

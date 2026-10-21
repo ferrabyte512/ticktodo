@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original mark: an open rounded box with a check stroke breaking out of its top-right corner. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M58,38 L44,38 Q36,38 36,46 L36,64 Q36,72 44,72 L62,72 Q70,72 70,64 L70,56"
+        android:strokeWidth="5"
+        android:strokeColor="#CFEFE3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M44,54 L52,62 L74,36"
+        android:strokeWidth="7"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#F2B04A"
+        android:pathData="M78,30m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+</vector>
