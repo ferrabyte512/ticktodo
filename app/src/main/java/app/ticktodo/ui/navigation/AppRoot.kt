@@ -1,5 +1,8 @@
 package app.ticktodo.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -60,7 +63,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import app.ticktodo.R
 import app.ticktodo.data.auth.AuthState
 import app.ticktodo.domain.model.TaskScope
@@ -77,7 +79,16 @@ import app.ticktodo.ui.settings.SettingsScreen
 import app.ticktodo.ui.tasks.TasksScreen
 import kotlinx.serialization.Serializable
 
+/** Lists opened from Browse (inbox, a list, a tag, all, completed). */
 @Serializable data class ScopeRoute(val scopeKey: String)
+
+/**
+ * The two task tabs get their own route types. If they shared ScopeRoute,
+ * the navigation library would treat them as one destination and "restore"
+ * Today when Upcoming is tapped. The scopeKey argument feeds TasksViewModel.
+ */
+@Serializable data class TodayRoute(val scopeKey: String = "today")
+@Serializable data class UpcomingRoute(val scopeKey: String = "upcoming")
 @Serializable data class EditorRoute(val taskId: String)
 @Serializable data object BrowseRoute
 @Serializable data object SearchRoute
@@ -147,11 +158,8 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
     val current: TopLevel? = when {
         destination == null -> TopLevel.TODAY
         destination.hasRoute<BrowseRoute>() -> TopLevel.BROWSE
-        destination.hasRoute<ScopeRoute>() -> when (backStack?.toRoute<ScopeRoute>()?.scopeKey) {
-            "today" -> TopLevel.TODAY
-            "upcoming" -> TopLevel.UPCOMING
-            else -> null
-        }
+        destination.hasRoute<TodayRoute>() -> TopLevel.TODAY
+        destination.hasRoute<UpcomingRoute>() -> TopLevel.UPCOMING
         else -> null
     }
     val wide = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >= 600.dp
@@ -194,21 +202,43 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
             if (showBanner) FocusBanner(focusState!!) { nav.navigate(FocusRoute()) { launchSingleTop = true } }
             NavHost(
                 nav,
-                startDestination = ScopeRoute("today"),
+                startDestination = TodayRoute("today"),
+                // Short fades: the default 700 ms cross-fade drew two full screens of
+                // translucent cards at once and caused dropped frames on tab switches.
+                enterTransition = { fadeIn(tween(150)) },
+                exitTransition = { fadeOut(tween(90)) },
+                popEnterTransition = { fadeIn(tween(150)) },
+                popExitTransition = { fadeOut(tween(90)) },
                 // The banner already sits under the status bar; screens below must not pad for it again.
                 modifier = Modifier.weight(1f).then(if (showBanner) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier),
             ) {
-                composable<ScopeRoute> { entry ->
-                    val route = entry.toRoute<ScopeRoute>()
-                    val topLevel = route.scopeKey == "today" || route.scopeKey == "upcoming"
+                composable<TodayRoute> {
                     TasksScreen(
                         onOpenTask = { nav.navigate(EditorRoute(it)) },
                         onOpenSearch = { nav.navigate(SearchRoute) },
                         onOpenSettings = { nav.navigate(SettingsRoute) },
                         onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
-                        onBack = if (topLevel) null else ({ nav.popBackStack() }),
-                        openQuickAdd = quickAddRequested && route.scopeKey == "today",
+                        onBack = null,
+                        openQuickAdd = quickAddRequested,
                         onQuickAddConsumed = { quickAddRequested = false },
+                    )
+                }
+                composable<UpcomingRoute> {
+                    TasksScreen(
+                        onOpenTask = { nav.navigate(EditorRoute(it)) },
+                        onOpenSearch = { nav.navigate(SearchRoute) },
+                        onOpenSettings = { nav.navigate(SettingsRoute) },
+                        onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
+                        onBack = null,
+                    )
+                }
+                composable<ScopeRoute> {
+                    TasksScreen(
+                        onOpenTask = { nav.navigate(EditorRoute(it)) },
+                        onOpenSearch = { nav.navigate(SearchRoute) },
+                        onOpenSettings = { nav.navigate(SettingsRoute) },
+                        onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
+                        onBack = { nav.popBackStack() },
                     )
                 }
                 composable<BrowseRoute> {
@@ -252,22 +282,15 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
 
 private fun NavHostController.navigateTopLevel(item: TopLevel) {
     val route: Any = when (item) {
-        TopLevel.TODAY -> ScopeRoute("today")
-        TopLevel.UPCOMING -> ScopeRoute("upcoming")
+        TopLevel.TODAY -> TodayRoute("today")
+        TopLevel.UPCOMING -> UpcomingRoute("upcoming")
         TopLevel.BROWSE -> BrowseRoute
     }
-    val currentScopeKey = currentBackStackEntry?.takeIf { it.destination.hasRoute<ScopeRoute>() }
-        ?.toRoute<ScopeRoute>()?.scopeKey
-    val targetScopeKey = (route as? ScopeRoute)?.scopeKey
-    val isSameDestination = if (targetScopeKey != null) {
-        currentScopeKey == targetScopeKey
-    } else {
-        currentBackStackEntry?.destination?.hasRoute<BrowseRoute>() == true
-    }
-
+    // Standard bottom-navigation behaviour: one copy of each tab, each tab keeps
+    // its own scroll position and back stack.
     navigate(route) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = isSameDestination
+        launchSingleTop = true
         restoreState = true
     }
 }

@@ -85,6 +85,7 @@ import app.ticktodo.ui.theme.ColorMath
 import app.ticktodo.ui.theme.LocalAppearance
 import app.ticktodo.ui.theme.TickTheme
 import app.ticktodo.ui.theme.WallpaperArt
+import app.ticktodo.ui.theme.WallpaperImage
 import app.ticktodo.ui.theme.label
 import app.ticktodo.ui.theme.seed
 import app.ticktodo.ui.theme.wallpaperKey
@@ -234,7 +235,15 @@ fun AppearanceContent(
         }
 
         SectionTitle(stringResource(R.string.appearance_accent))
-        AccentRow(a, enabled = !settings.dynamicColor, onAccent = onAccent, onCustom = onCustomAccent)
+        AccentRow(a, dynamicOn = settings.dynamicColor, onAccent = onAccent, onCustom = onCustomAccent)
+        if (settings.dynamicColor) {
+            Text(
+                stringResource(R.string.appearance_dynamic_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             SwitchRow(stringResource(R.string.settings_dynamic_color), stringResource(R.string.settings_dynamic_color_body), settings.dynamicColor, onDynamic)
         }
@@ -265,14 +274,12 @@ fun AppearanceContent(
                 onChange = { overlay = it },
                 onDone = { onOverlay(overlay) },
             )
-            val blurSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             SliderRow(
                 label = stringResource(R.string.appearance_blur),
-                valueText = if (blurSupported) "${blur.toInt()} dp" else stringResource(R.string.appearance_blur_unsupported),
+                valueText = "${blur.toInt()}",
                 value = blur,
                 range = Appearance.BLUR_RANGE,
                 tag = "blurSlider",
-                enabled = blurSupported,
                 onChange = { blur = it },
                 onDone = { onBlur(blur) },
             )
@@ -314,7 +321,7 @@ private fun LivePreview(mode: ThemeMode, draft: Appearance, dynamic: Boolean, mo
                 .testTag("livePreview"),
         ) {
             if (draft.hasWallpaper) {
-                WallpaperArt(draft.wallpaperKey(state.dark), Modifier.fillMaxSize())
+                WallpaperImage(draft.wallpaperKey(state.dark), draft.blurDp, Modifier.fillMaxSize())
                 Box(Modifier.fillMaxSize().background(state.pageColor.copy(alpha = draft.overlay)))
             }
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -350,7 +357,7 @@ private fun PreviewTask(title: String, done: Boolean) {
 }
 
 @Composable
-private fun AccentRow(a: Appearance, enabled: Boolean, onAccent: (app.ticktodo.data.settings.AppTheme) -> Unit, onCustom: () -> Unit) {
+private fun AccentRow(a: Appearance, dynamicOn: Boolean, onAccent: (app.ticktodo.data.settings.AppTheme) -> Unit, onCustom: () -> Unit) {
     Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             AccentPresets.chunked(5).forEach { row ->
@@ -359,13 +366,12 @@ private fun AccentRow(a: Appearance, enabled: Boolean, onAccent: (app.ticktodo.d
                         Swatch(
                             color = Color(theme.seed),
                             label = stringResource(theme.label),
-                            selected = a.customAccent == null && a.accent == theme,
-                            enabled = enabled,
+                            selected = !dynamicOn && a.customAccent == null && a.accent == theme,
                             onClick = { onAccent(theme) },
                         )
                     }
                     if (row.size < 5) {
-                        CustomSwatch(selected = a.customAccent != null, custom = a.customAccent, enabled = enabled, onClick = onCustom)
+                        CustomSwatch(selected = !dynamicOn && a.customAccent != null, custom = a.customAccent, onClick = onCustom)
                     }
                 }
             }
@@ -374,7 +380,7 @@ private fun AccentRow(a: Appearance, enabled: Boolean, onAccent: (app.ticktodo.d
 }
 
 @Composable
-private fun Swatch(color: Color, label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun Swatch(color: Color, label: String, selected: Boolean, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(60.dp)) {
         Box(
             Modifier
@@ -382,7 +388,7 @@ private fun Swatch(color: Color, label: String, selected: Boolean, enabled: Bool
                 .clip(CircleShape)
                 .background(color)
                 .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
-                .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+                .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
                 .semantics { contentDescription = label },
             contentAlignment = Alignment.Center,
         ) {
@@ -393,7 +399,7 @@ private fun Swatch(color: Color, label: String, selected: Boolean, enabled: Bool
 }
 
 @Composable
-private fun CustomSwatch(selected: Boolean, custom: Int?, enabled: Boolean, onClick: () -> Unit) {
+private fun CustomSwatch(selected: Boolean, custom: Int?, onClick: () -> Unit) {
     val label = stringResource(R.string.appearance_custom)
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(60.dp)) {
         Box(
@@ -402,7 +408,7 @@ private fun CustomSwatch(selected: Boolean, custom: Int?, enabled: Boolean, onCl
                 .clip(CircleShape)
                 .background(Brush.sweepGradient(listOf(0f, 60f, 120f, 180f, 240f, 300f, 360f).map { Color.hsv(it % 360f, 0.55f, 0.95f) }))
                 .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
-                .selectable(selected = selected, enabled = enabled, role = Role.Button, onClick = onClick)
+                .selectable(selected = selected, role = Role.Button, onClick = onClick)
                 .semantics { contentDescription = label }
                 .testTag("customAccent"),
             contentAlignment = Alignment.Center,

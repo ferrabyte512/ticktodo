@@ -8,6 +8,14 @@ import android.net.Uri
 import android.os.Build
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import kotlin.math.roundToInt
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -17,8 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -46,10 +52,14 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /**
- * Draws the app background: page colour, optional wallpaper (with optional
- * blur on Android 12+) and a readability scrim, with [content] on top.
- * Built-in wallpapers are vector scenes drawn in code: no image assets, no
- * licensing questions and nothing to fail to load.
+ * Draws the app background: page colour, optional wallpaper and a readability
+ * scrim, with [content] on top.
+ *
+ * Performance: the wallpaper is rendered once, off the main thread, into a
+ * small bitmap and then only that bitmap is drawn each frame. Redrawing
+ * several full-screen gradients (or a live blur) on every frame made scrolling
+ * janky on mid-range GPUs. Blur comes from rendering smaller and scaling up
+ * smoothly, which is nearly free and works on every Android version.
  */
 @Composable
 fun AppBackground(content: @Composable () -> Unit) {
@@ -58,26 +68,82 @@ fun AppBackground(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize().background(state.pageColor)) {
         if (a.hasWallpaper) {
             Crossfade(
-                targetState = WallpaperKey(a.wallpaper, a.gradientStart, a.gradientEnd, a.photoVersion, state.dark),
+                targetState = a.wallpaperKey(state.dark) to a.blurDp,
                 animationSpec = tween(500),
                 label = "wallpaper",
-            ) { key ->
-                WallpaperArt(
-                    key = key,
-                    modifier = Modifier.fillMaxSize().then(
-                        if (a.blurDp > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            Modifier.blur(a.blurDp.dp, BlurredEdgeTreatment.Rectangle)
-                        } else {
-                            Modifier
-                        },
-                    ),
-                )
+            ) { (key, blur) ->
+                WallpaperImage(key, blur, Modifier.fillMaxSize())
             }
             // Readability scrim in the page colour.
             Box(Modifier.fillMaxSize().background(state.pageColor.copy(alpha = a.overlay)))
         }
         content()
     }
+}
+
+/** Resolution factor for the cached wallpaper bitmap. Lower = softer (blurred) and lighter on memory. */
+fun wallpaperRenderScale(blurDp: Float, photo: Boolean): Float {
+    val sharp = if (photo) 1f else 0.5f
+    return (sharp / (1f + blurDp.coerceAtLeast(0f) / 3f)).coerceIn(0.03f, 1f)
+}
+
+/** The wallpaper rendered once into a cached bitmap; see [AppBackground]. */
+@Composable
+fun WallpaperImage(key: WallpaperKey, blurDp: Float, modifier: Modifier = Modifier) {
+    if (key.wallpaper == Wallpaper.NONE) {
+        Box(modifier)
+        return
+    }
+    val context = LocalContext.current
+    val density = LocalDensity.current.density
+    BoxWithConstraints(modifier) {
+        val w = constraints.maxWidth
+        val h = constraints.maxHeight
+        if (w <= 0 || h <= 0 || w == Int.MAX_VALUE || h == Int.MAX_VALUE) return@BoxWithConstraints
+        val scale = wallpaperRenderScale(blurDp, key.wallpaper == Wallpaper.PHOTO)
+        val image by produceState<ImageBitmap?>(initialValue = null, key, w, h, scale) {
+            value = withContext(Dispatchers.Default) {
+                try {
+                    renderWallpaper(context, key, w, h, scale, density)
+                } catch (e: Throwable) {
+                    AppLog.w("wallpaper render failed", e)
+                    null
+                }
+            }
+        }
+        val img = image
+        if (img != null) {
+            Canvas(Modifier.fillMaxSize()) {
+                // Centre-crop the bitmap to the screen, scaled up with bilinear filtering.
+                val srcRatio = img.width / img.height.toFloat()
+                val dstRatio = size.width / size.height
+                val (sw, sh) = if (srcRatio > dstRatio) (img.height * dstRatio).roundToInt() to img.height
+                else img.width to (img.width / dstRatio).roundToInt()
+                drawImage(
+                    img,
+                    srcOffset = IntOffset((img.width - sw) / 2, (img.height - sh) / 2),
+                    srcSize = IntSize(sw.coerceAtLeast(1), sh.coerceAtLeast(1)),
+                    dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                    filterQuality = FilterQuality.Low,
+                )
+                if (key.dark && key.wallpaper == Wallpaper.PHOTO) drawRect(Color.Black.copy(alpha = 0.3f))
+            }
+        }
+    }
+}
+
+/** Renders a wallpaper into a bitmap of about (width × scale) by (height × scale). Null if a photo is missing. */
+internal fun renderWallpaper(context: Context, key: WallpaperKey, width: Int, height: Int, scale: Float, density: Float): ImageBitmap? {
+    val bw = (width * scale).roundToInt().coerceAtLeast(8)
+    val bh = (height * scale).roundToInt().coerceAtLeast(8)
+    if (key.wallpaper == Wallpaper.PHOTO) {
+        return WallpaperStore.decode(WallpaperStore.file(context), max(bw, bh))?.asImageBitmap()
+    }
+    val image = ImageBitmap(bw, bh)
+    val canvas = androidx.compose.ui.graphics.Canvas(image)
+    val scene = sceneFor(key)
+    CanvasDrawScope().draw(Density(density * scale), LayoutDirection.Ltr, canvas, Size(bw.toFloat(), bh.toFloat())) { scene(this) }
+    return image
 }
 
 /** Everything that changes how a wallpaper looks; used as the cross-fade key. */
@@ -128,7 +194,7 @@ private fun sceneFor(key: WallpaperKey): DrawScope.() -> Unit {
     // Night versions keep the hues but sink them towards a warm near-black.
     fun c(argb: Long, alpha: Float = 1f): Color {
         val base = argb.toInt()
-        val v = if (dark) ColorMath.blend(base, 0xFF14110E.toInt(), 0.62f) else base
+        val v = if (dark) ColorMath.blend(base, 0xFF14110E.toInt(), 0.45f) else base
         return Color(v).copy(alpha = alpha)
     }
     return when (key.wallpaper) {

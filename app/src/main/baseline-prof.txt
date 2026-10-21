@@ -1,0 +1,5 @@
+# Ahead-of-time compile the app's own code on install (release builds), so the
+# first launches are not interpreted. AndroidX and Compose ship their own
+# profiles, which the build merges in automatically.
+HSPLapp/ticktodo/**->**(**)**
+Lapp/ticktodo/**;

@@ -34,6 +34,7 @@ import app.ticktodo.ui.common.ListBadge
 import app.ticktodo.ui.common.TaskRow
 import app.ticktodo.ui.theme.AppBackground
 import app.ticktodo.ui.theme.TickTheme
+import app.ticktodo.ui.theme.wallpaperKey
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -91,11 +92,21 @@ class ScreenshotTest {
         return seen.size
     }
 
+    /** The wallpaper renders on a background thread; wait until it is on screen. */
+    private fun awaitWallpaper(minVariety: Int = 30) {
+        runCatching {
+            compose.waitUntil(timeoutMillis = 10_000) {
+                variety(compose.onRoot().captureToImage().asAndroidBitmap()) > minVariety
+            }
+        }
+    }
+
     private fun renderToday(name: String, appearance: Appearance, mode: ThemeMode): Bitmap {
         compose.setContent {
             TickTheme(themeMode = mode, appearance = appearance) { AppBackground { TodayMock() } }
         }
         compose.waitForIdle()
+        if (appearance.hasWallpaper) awaitWallpaper()
         return save(name)
     }
 
@@ -131,7 +142,10 @@ class ScreenshotTest {
         }
         for (w in listOf(Wallpaper.PEACH_GLOW, Wallpaper.MOUNTAINS, Wallpaper.DUNES, Wallpaper.SEA_MIST, Wallpaper.FOREST, Wallpaper.WAVES, Wallpaper.AURORA)) {
             current = w
-            // Let the 500 ms cross-fade finish before capturing.
+            // Let the background render and the 500 ms cross-fade finish before capturing.
+            compose.mainClock.advanceTimeBy(800)
+            compose.waitForIdle()
+            awaitWallpaper(6)
             compose.mainClock.advanceTimeBy(800)
             compose.waitForIdle()
             val bmp = save("scene_${w.name.lowercase()}")
@@ -167,5 +181,20 @@ class ScreenshotTest {
         }
         compose.waitForIdle()
         assertTrue(variety(save("color_picker")) > 20)
+    }
+
+    @Test fun wallpaper_renderer_produces_small_detailed_bitmaps() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        for (w in Wallpaper.entries.filter { it != Wallpaper.NONE && it != Wallpaper.PHOTO }) {
+            val key = Appearance(wallpaper = w).wallpaperKey(dark = false)
+            val img = app.ticktodo.ui.theme.renderWallpaper(context, key, 1080, 2400, app.ticktodo.ui.theme.wallpaperRenderScale(0f, false), 3f)!!
+            // Half resolution: about 2.6 MB instead of 10 MB for a full-screen bitmap.
+            kotlin.test.assertEquals(540, img.width)
+            assertTrue(variety(img.asAndroidBitmap()) > 3, "$w renders detail")
+        }
+        val blurred = app.ticktodo.ui.theme.wallpaperRenderScale(24f, false)
+        assertTrue(blurred < 0.1f, "strong blur renders tiny: $blurred")
+        assertTrue(app.ticktodo.ui.theme.renderWallpaper(context, Appearance(wallpaper = Wallpaper.PHOTO).wallpaperKey(false), 1080, 2400, 1f, 3f) == null,
+            "missing photo gives null, not a crash")
     }
 }

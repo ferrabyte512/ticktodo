@@ -342,6 +342,7 @@
     <string name="appearance_title">Appearance</string>
     <string name="appearance_summary">Themes, accent colours and wallpapers</string>
     <string name="appearance_accent">Accent colour</string>
+    <string name="appearance_dynamic_note">Wallpaper colours are on. Pick an accent above to use it instead.</string>
     <string name="appearance_custom">Custom</string>
     <string name="appearance_custom_accent">Custom accent colour</string>
     <string name="appearance_wallpaper">Background</string>
@@ -350,8 +351,7 @@
     <string name="appearance_change_photo">Choose another photo</string>
     <string name="appearance_photo_failed">That picture could not be opened. Try a different one.</string>
     <string name="appearance_readability">Readability overlay</string>
-    <string name="appearance_blur">Background blur</string>
-    <string name="appearance_blur_unsupported">Android 12+</string>
+    <string name="appearance_blur">Background softness</string>
     <string name="appearance_glass">Glass cards</string>
     <string name="appearance_glass_body">See-through cards that let the background show</string>
     <string name="appearance_card_opacity">Card opacity</string>

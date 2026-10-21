@@ -127,12 +127,17 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
         context.dataStore.edit { it[Keys.reminderMinute] = minute.coerceIn(0, 1_439) }
     suspend fun setSort(sort: TaskSort) = context.dataStore.edit { it[Keys.sort] = sort.name }
     /** Picking a preset clears any custom accent. */
+    /** Choosing an accent also turns off wallpaper colours, which would otherwise hide it. */
     suspend fun setAppTheme(theme: AppTheme) = context.dataStore.edit {
         it[Keys.appTheme] = theme.name
         it.remove(Keys.customAccent)
+        it[Keys.dynamic] = false
     }
 
-    suspend fun setCustomAccent(argb: Int) = context.dataStore.edit { it[Keys.customAccent] = argb or 0xFF000000.toInt() }
+    suspend fun setCustomAccent(argb: Int) = context.dataStore.edit {
+        it[Keys.customAccent] = argb or 0xFF000000.toInt()
+        it[Keys.dynamic] = false
+    }
     suspend fun setWallpaper(wallpaper: Wallpaper) = context.dataStore.edit { it[Keys.wallpaper] = wallpaper.name }
     suspend fun setGradient(start: Int, end: Int) = context.dataStore.edit {
         it[Keys.gradientStart] = start

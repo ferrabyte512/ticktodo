@@ -16,6 +16,7 @@ import app.ticktodo.focus.FocusManager
 import app.ticktodo.focus.FocusNotifications
 import app.ticktodo.reminders.Notifications
 import app.ticktodo.sync.SyncScheduler
+import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterNotNull
@@ -27,11 +28,13 @@ class TickToDoApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var firebase: FirebaseProvider
-    @Inject lateinit var session: UserSession
-    @Inject lateinit var accountService: AccountService
-    @Inject lateinit var syncScheduler: SyncScheduler
-    // Injected so a running focus session is restored and its alarm re-armed at start-up.
-    @Inject lateinit var focusManager: FocusManager
+
+    // Lazy so that nothing heavy (Firebase Auth, the database) is created on the
+    // main thread during start-up; see onCreate.
+    @Inject lateinit var session: Lazy<UserSession>
+    @Inject lateinit var accountService: Lazy<AccountService>
+    @Inject lateinit var syncScheduler: Lazy<SyncScheduler>
+    @Inject lateinit var focusManager: Lazy<FocusManager>
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
 
     override val workManagerConfiguration: Configuration
@@ -44,14 +47,17 @@ class TickToDoApp : Application(), Configuration.Provider {
         super.onCreate()
         Notifications.createChannels(this)
         FocusNotifications.createChannels(this)
-        if (firebase.isConfigured) AppCheckInstaller.install()
 
-        // Whenever a user is (or becomes) signed in: drop rows of any other account,
-        // make sure periodic sync and reminders are in place.
+        // Start-up work runs on a background thread so the first screen appears sooner.
         scope.launch {
-            session.uid.filterNotNull().collect { uid ->
+            if (firebase.isConfigured) AppCheckInstaller.install()
+            // Restores a running focus session and re-arms its alarm.
+            focusManager.get()
+            // Whenever a user is (or becomes) signed in: drop rows of any other account,
+            // make sure periodic sync and reminders are in place.
+            session.get().uid.filterNotNull().collect { uid ->
                 try {
-                    accountService.onSignedIn(uid)
+                    accountService.get().onSignedIn(uid)
                 } catch (e: Exception) {
                     AppLog.e("post sign-in setup failed", e)
                 }
@@ -61,7 +67,9 @@ class TickToDoApp : Application(), Configuration.Provider {
         // Pull other devices' changes each time the app comes to the foreground.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
-                if (session.uid.value != null) syncScheduler.requestSync(delaySeconds = 0)
+                scope.launch {
+                    if (session.get().uid.value != null) syncScheduler.get().requestSync(delaySeconds = 0)
+                }
             }
         })
     }
