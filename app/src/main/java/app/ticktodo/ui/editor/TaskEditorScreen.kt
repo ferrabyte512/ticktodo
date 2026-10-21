@@ -1,5 +1,6 @@
 package app.ticktodo.ui.editor
 
+import app.ticktodo.ui.common.GlassSurface
 import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -433,7 +434,7 @@ private fun FocusSection(
     onStart: () -> Unit,
 ) {
     SectionTitle(stringResource(R.string.focus_section))
-    Surface(
+    GlassSurface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),

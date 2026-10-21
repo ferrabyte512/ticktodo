@@ -31,6 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -46,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -67,6 +69,7 @@ import app.ticktodo.domain.TaskValidator
 import app.ticktodo.domain.model.TaskList
 import app.ticktodo.domain.model.TaskScope
 import app.ticktodo.ui.common.ConfirmDialog
+import app.ticktodo.ui.common.GlassSurface
 import app.ticktodo.ui.common.SectionTitle
 import app.ticktodo.ui.common.UiMessage
 import app.ticktodo.ui.common.UiMessenger
@@ -133,26 +136,35 @@ fun BrowseScreen(
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
+                GlassSurface(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+                Column {
                 ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable { onOpenScope(TaskScope.Inbox) },
                     leadingContent = { Icon(Icons.Outlined.Inbox, null) },
                     headlineContent = { Text(stringResource(R.string.scope_inbox)) },
                 )
                 ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable { onOpenScope(TaskScope.All) },
                     leadingContent = { Icon(Icons.Outlined.ViewList, null) },
                     headlineContent = { Text(stringResource(R.string.scope_all)) },
                 )
                 ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable { onOpenScope(TaskScope.Completed) },
                     leadingContent = { Icon(Icons.Outlined.DoneAll, null) },
                     headlineContent = { Text(stringResource(R.string.scope_completed)) },
                 )
+                }
+                }
                 SectionTitle(stringResource(R.string.browse_lists))
             }
             items(state.lists, key = { it.id }) { list ->
                 var menu by remember { mutableStateOf(false) }
+                GlassSurface(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), shape = MaterialTheme.shapes.medium) {
                 ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable { onOpenScope(TaskScope.InList(list.id)) },
                     leadingContent = { Box(Modifier.size(14.dp).clip(CircleShape).background(extra.list(list.colorIndex))) },
                     headlineContent = { Text(list.name) },
@@ -168,6 +180,7 @@ fun BrowseScreen(
                         }
                     },
                 )
+                }
             }
             item {
                 ListItem(

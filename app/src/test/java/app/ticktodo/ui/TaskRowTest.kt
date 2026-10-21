@@ -17,6 +17,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
+import java.util.concurrent.TimeUnit
 import java.time.LocalDate
 import kotlin.test.assertEquals
 
@@ -44,7 +46,16 @@ class TaskRowTest {
         compose.onNodeWithText("Draft section 2").assertIsDisplayed()
         compose.onNodeWithText("1/3").assertIsDisplayed()
         compose.onNodeWithText("#work").assertIsDisplayed()
+        compose.mainClock.autoAdvance = false
         compose.onNodeWithContentDescription("Mark complete: Write report").performClick()
+        // The circle fills first; the task is completed a moment later.
+        compose.mainClock.advanceTimeBy(50)
+        assertEquals(0, completed)
+        // The delay runs on the main looper, so advance both clocks.
+        compose.mainClock.autoAdvance = true
+        compose.mainClock.advanceTimeBy(500)
+        ShadowLooper.idleMainLooper(500, TimeUnit.MILLISECONDS)
+        compose.waitUntil(timeoutMillis = 5_000) { completed == 1 }
         assertEquals(1, completed)
     }
 

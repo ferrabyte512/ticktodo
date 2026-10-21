@@ -13,6 +13,7 @@ import app.ticktodo.data.auth.AuthState
 import app.ticktodo.ui.MainViewModel
 import app.ticktodo.ui.navigation.AppRoot
 import app.ticktodo.ui.navigation.PendingAction
+import app.ticktodo.ui.theme.AppBackground
 import app.ticktodo.ui.theme.TickTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,8 +38,10 @@ class MainActivity : ComponentActivity() {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             val action by pending.collectAsStateWithLifecycle()
             val s = settings ?: return@setContent
-            TickTheme(themeMode = s.themeMode, appTheme = s.appTheme, dynamicColor = s.dynamicColor) {
-                AppRoot(viewModel, action) { pending.value = null }
+            TickTheme(themeMode = s.themeMode, appearance = s.appearance, dynamicColor = s.dynamicColor) {
+                AppBackground {
+                    AppRoot(viewModel, action) { pending.value = null }
+                }
             }
         }
     }

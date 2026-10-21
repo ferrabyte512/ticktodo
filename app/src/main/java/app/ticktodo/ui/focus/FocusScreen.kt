@@ -1,5 +1,6 @@
 package app.ticktodo.ui.focus
 
+import app.ticktodo.ui.common.GlassSurface
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -119,7 +120,7 @@ private fun Setup(state: FocusUiState, viewModel: FocusViewModel) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
-    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+    GlassSurface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(16.dp)) {
             PlanEditor(state.draftPlan, viewModel::setDraft)
             Row(
@@ -231,7 +232,7 @@ private fun RunningSession(active: FocusState, viewModel: FocusViewModel, onDone
 @Composable
 private fun Stats(todayMs: Long, taskMs: Long) {
     if (todayMs <= 0 && taskMs <= 0) return
-    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainer) {
+    GlassSurface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainer) {
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             StatItem(stringResource(R.string.focus_stat_today), formatDuration(todayMs))
             StatItem(stringResource(R.string.focus_stat_task), formatDuration(taskMs))

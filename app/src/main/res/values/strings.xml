@@ -303,11 +303,7 @@
     <string name="settings_default_focus_plan">Default focus plan</string>
 
     <!-- Themes -->
-    <string name="settings_color_theme">Colour theme</string>
-    <string name="settings_theme_dynamic_note">Wallpaper colours are on, so the colour theme is not used.</string>
-    <string name="theme_jade">Jade</string>
     <string name="theme_ocean">Ocean</string>
-    <string name="theme_sunset">Sunset</string>
     <string name="theme_lavender">Lavender</string>
     <string name="theme_rose">Rose</string>
     <string name="theme_graphite">Graphite</string>
@@ -342,4 +338,52 @@
     <string name="widget_next_7_days">Next 7 days</string>
     <string name="widget_focus_idle">Open a task and start a focus session.</string>
     <string name="widget_focus_until">Until %1$s</string>
+    <!-- Appearance -->
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_summary">Themes, accent colours and wallpapers</string>
+    <string name="appearance_accent">Accent colour</string>
+    <string name="appearance_custom">Custom</string>
+    <string name="appearance_custom_accent">Custom accent colour</string>
+    <string name="appearance_wallpaper">Background</string>
+    <string name="appearance_gradient_start">Start colour</string>
+    <string name="appearance_gradient_end">End colour</string>
+    <string name="appearance_change_photo">Choose another photo</string>
+    <string name="appearance_photo_failed">That picture could not be opened. Try a different one.</string>
+    <string name="appearance_readability">Readability overlay</string>
+    <string name="appearance_blur">Background blur</string>
+    <string name="appearance_blur_unsupported">Android 12+</string>
+    <string name="appearance_glass">Glass cards</string>
+    <string name="appearance_glass_body">See-through cards that let the background show</string>
+    <string name="appearance_card_opacity">Card opacity</string>
+    <string name="appearance_reset">Reset to default look</string>
+    <string name="appearance_sample_task_1">Plan the week</string>
+    <string name="appearance_sample_task_2">Morning walk</string>
+    <string name="theme_apricot">Apricot</string>
+    <string name="theme_terracotta">Terracotta</string>
+    <string name="theme_honey">Honey</string>
+    <string name="theme_sage">Sage</string>
+    <string name="wallpaper_none">Plain</string>
+    <string name="wallpaper_peach">Peach glow</string>
+    <string name="wallpaper_mountains">Mountains</string>
+    <string name="wallpaper_dunes">Dunes</string>
+    <string name="wallpaper_sea">Sea mist</string>
+    <string name="wallpaper_forest">Forest</string>
+    <string name="wallpaper_waves">Warm waves</string>
+    <string name="wallpaper_aurora">Aurora</string>
+    <string name="wallpaper_gradient">Gradient</string>
+    <string name="wallpaper_photo">Your photo</string>
+    <string name="action_apply">Apply</string>
+
+    <!-- Colour picker -->
+    <string name="picker_wheel">Colour wheel. Drag the ring for hue and the square for saturation and brightness.</string>
+    <string name="picker_hue_value">Hue %1$d degrees</string>
+    <string name="picker_saturation">Saturation</string>
+    <string name="picker_brightness">Brightness</string>
+    <string name="picker_opacity">Opacity</string>
+    <string name="picker_hex">HEX</string>
+    <string name="picker_hex_hint">#RRGGBB</string>
+    <string name="picker_hex_hint_alpha">#RRGGBB or #AARRGGBB</string>
+    <string name="picker_hex_error">Enter 3, 6 or 8 hex digits</string>
+    <string name="picker_current">Current</string>
+    <string name="picker_new">New</string>
 </resources>

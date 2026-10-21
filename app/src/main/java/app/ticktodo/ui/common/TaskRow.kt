@@ -1,6 +1,15 @@
 package app.ticktodo.ui.common
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -65,6 +74,8 @@ import java.time.LocalDate
 
 data class ListBadge(val name: String, val colorIndex: Int)
 
+private const val COMPLETE_DELAY_MS = 320L
+
 /**
  * A task as a large, easy-to-tap card: the whole card opens the task, the big
  * circle completes it, swipe right completes, swipe left deletes, long-press
@@ -93,6 +104,33 @@ fun TaskRow(
     val focusLabel = stringResource(R.string.focus_start)
     val stateText = stringResource(if (task.isCompleted) R.string.a11y_completed else R.string.a11y_not_completed)
     val priorityColor = extra.priority(task.priority)
+
+    // Tapping the circle fills it and strikes the title first, then completes the
+    // task, so the change is visible before the card leaves the list.
+    var completing by remember(task.id) { mutableStateOf(false) }
+    val shownDone = task.isCompleted || completing
+    LaunchedEffect(completing) {
+        if (completing) {
+            delay(COMPLETE_DELAY_MS)
+            onToggleComplete()
+            completing = false
+        }
+    }
+    val tapCheck = { if (task.isCompleted) onToggleComplete() else if (!completing) completing = true }
+    val checkScale by animateFloatAsState(
+        targetValue = if (shownDone) 1f else 0.86f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow),
+        label = "check",
+    )
+    val checkTint by animateColorAsState(
+        when {
+            shownDone -> MaterialTheme.colorScheme.primary
+            priorityColor != null -> priorityColor
+            else -> MaterialTheme.colorScheme.outline
+        },
+        label = "checkTint",
+    )
+    val titleAlpha by animateFloatAsState(if (shownDone) 0.6f else 1f, label = "titleAlpha")
 
     // The card springs back after a swipe; the list update then removes it.
     val dismissState = rememberSwipeToDismissBoxState(
@@ -133,7 +171,7 @@ fun TaskRow(
             }
         },
     ) {
-        Surface(
+        GlassSurface(
             shape = MaterialTheme.shapes.large,
             color = when {
                 selected -> MaterialTheme.colorScheme.secondaryContainer
@@ -157,26 +195,24 @@ fun TaskRow(
                 },
         ) {
             Row(Modifier.height(IntrinsicSize.Min).heightIn(min = 76.dp), verticalAlignment = Alignment.CenterVertically) {
-                // Priority stripe.
+                // Priority mark: a short rounded pill inset from the card edge.
                 Box(
                     Modifier
-                        .width(5.dp)
+                        .padding(start = 6.dp, top = 16.dp, bottom = 16.dp)
+                        .width(4.dp)
                         .fillMaxHeight()
+                        .clip(CircleShape)
                         .background(priorityColor ?: Color.Transparent),
                 )
                 IconButton(
-                    onClick = onToggleComplete,
+                    onClick = tapCheck,
                     modifier = Modifier.padding(start = 2.dp).size(56.dp).semantics { contentDescription = "$completeLabel: ${task.title}" },
                 ) {
                     Icon(
-                        imageVector = if (task.isCompleted) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
+                        imageVector = if (shownDone) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
                         contentDescription = null,
-                        modifier = Modifier.size(30.dp),
-                        tint = when {
-                            task.isCompleted -> MaterialTheme.colorScheme.primary
-                            priorityColor != null -> priorityColor
-                            else -> MaterialTheme.colorScheme.outline
-                        },
+                        modifier = Modifier.size(30.dp).graphicsLayer { scaleX = checkScale; scaleY = checkScale },
+                        tint = checkTint,
                     )
                 }
                 Column(Modifier.weight(1f).padding(vertical = 12.dp)) {
@@ -185,8 +221,9 @@ fun TaskRow(
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        textDecoration = if (shownDone) TextDecoration.LineThrough else null,
+                        color = if (shownDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.graphicsLayer { alpha = titleAlpha },
                     )
                     if (task.notes.isNotBlank()) {
                         Text(

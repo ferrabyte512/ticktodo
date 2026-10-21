@@ -1,4 +1,4 @@
-package app.ticktodo.ui.settings
+﻿package app.ticktodo.ui.settings
 
 import android.Manifest
 import android.content.Intent
@@ -27,7 +27,6 @@ import app.ticktodo.data.settings.AppTheme
 import app.ticktodo.ui.common.syncErrorHelp
 import app.ticktodo.ui.common.syncErrorTitle
 import app.ticktodo.ui.focus.PlanEditor
-import app.ticktodo.ui.theme.spec
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -97,7 +96,12 @@ import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onOpenLicenses: () -> Unit,
+    onOpenAppearance: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = LocalActivity.current
@@ -226,47 +230,12 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit, viewModel: Se
 
                 // Appearance
                 SectionTitle(stringResource(R.string.settings_appearance))
-                Text(
-                    stringResource(R.string.settings_color_theme),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                ThemePicker(
-                    selected = state.settings.appTheme,
-                    enabled = !state.settings.dynamicColor,
-                    onSelect = viewModel::setAppTheme,
-                )
                 ListItem(
+                    modifier = Modifier.clickable(onClick = onOpenAppearance),
                     leadingContent = { Icon(Icons.Outlined.Palette, null) },
-                    headlineContent = { Text(stringResource(R.string.settings_theme)) },
+                    headlineContent = { Text(stringResource(R.string.appearance_title)) },
+                    supportingContent = { Text(stringResource(R.string.appearance_summary)) },
                 )
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    ThemeMode.entries.forEachIndexed { i, mode ->
-                        SegmentedButton(
-                            selected = state.settings.themeMode == mode,
-                            onClick = { viewModel.setTheme(mode) },
-                            shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                        ) {
-                            Text(
-                                stringResource(
-                                    when (mode) {
-                                        ThemeMode.SYSTEM -> R.string.theme_system
-                                        ThemeMode.LIGHT -> R.string.theme_light
-                                        ThemeMode.DARK -> R.string.theme_dark
-                                    },
-                                ),
-                            )
-                        }
-                    }
-                }
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    ListItem(
-                        modifier = Modifier.semantics { role = Role.Switch }.clickable { viewModel.setDynamicColor(!state.settings.dynamicColor) },
-                        headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
-                        supportingContent = { Text(stringResource(R.string.settings_dynamic_color_body)) },
-                        trailingContent = { Switch(checked = state.settings.dynamicColor, onCheckedChange = null) },
-                    )
-                }
 
                 // About & legal
                 SectionTitle(stringResource(R.string.settings_about))
@@ -366,47 +335,4 @@ private fun LinkItem(icon: ImageVector, title: String, onClick: () -> Unit) {
         leadingContent = { Icon(icon, null) },
         headlineContent = { Text(title) },
     )
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ThemePicker(selected: AppTheme, enabled: Boolean, onSelect: (AppTheme) -> Unit) {
-    FlowRow(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        AppTheme.entries.forEach { theme ->
-            val spec = theme.spec
-            val isSelected = theme == selected
-            val name = stringResource(spec.name)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton) { onSelect(theme) }
-                    .padding(6.dp),
-            ) {
-                Box(
-                    Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(spec.lightPrimary, spec.lightAccent)))
-                        .then(if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isSelected) Icon(Icons.Outlined.Check, null, tint = Color.White)
-                }
-                Text(name, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
-            }
-        }
-    }
-    if (!enabled) {
-        Text(
-            stringResource(R.string.settings_theme_dynamic_note),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        )
-    }
 }

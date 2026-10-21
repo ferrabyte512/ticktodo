@@ -67,6 +67,8 @@ import app.ticktodo.domain.model.TaskScope
 import app.ticktodo.ui.MainViewModel
 import app.ticktodo.ui.auth.SignInScreen
 import app.ticktodo.ui.browse.BrowseScreen
+import app.ticktodo.ui.appearance.AppearanceScreen
+import app.ticktodo.ui.common.glassColor
 import app.ticktodo.ui.editor.TaskEditorScreen
 import app.ticktodo.ui.focus.FocusScreen
 import app.ticktodo.ui.search.SearchScreen
@@ -81,6 +83,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object SearchRoute
 @Serializable data object SettingsRoute
 @Serializable data object LicensesRoute
+@Serializable data object AppearanceRoute
 /** [taskId] is empty when opened for the running session. */
 @Serializable data class FocusRoute(val taskId: String = "")
 
@@ -160,7 +163,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
             if (!wide && current != null) {
-                NavigationBar {
+                NavigationBar(containerColor = glassColor(MaterialTheme.colorScheme.surfaceContainer)) {
                     TopLevel.entries.forEach { item ->
                         NavigationBarItem(
                             selected = current == item,
@@ -175,7 +178,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
     ) { padding ->
         Row(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             if (wide && current != null) {
-                NavigationRail {
+                NavigationRail(containerColor = glassColor(MaterialTheme.colorScheme.surfaceContainer)) {
                     TopLevel.entries.forEach { item ->
                         NavigationRailItem(
                             selected = current == item,
@@ -226,10 +229,17 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
                     SearchScreen(onBack = { nav.popBackStack() }, onOpenTask = { nav.navigate(EditorRoute(it)) })
                 }
                 composable<SettingsRoute> {
-                    SettingsScreen(onBack = { nav.popBackStack() }, onOpenLicenses = { nav.navigate(LicensesRoute) })
+                    SettingsScreen(
+                        onBack = { nav.popBackStack() },
+                        onOpenLicenses = { nav.navigate(LicensesRoute) },
+                        onOpenAppearance = { nav.navigate(AppearanceRoute) },
+                    )
                 }
                 composable<LicensesRoute> {
                     LicensesScreen(onBack = { nav.popBackStack() })
+                }
+                composable<AppearanceRoute> {
+                    AppearanceScreen(onBack = { nav.popBackStack() })
                 }
                 composable<FocusRoute> {
                     FocusScreen(onBack = { nav.popBackStack() })
