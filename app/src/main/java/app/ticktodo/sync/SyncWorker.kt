@@ -25,13 +25,14 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val uid = session.uid.value ?: return Result.success()
         val changed = mutableSetOf<String>()
-        var outcome = engine.sync(uid, inputData.getBoolean(KEY_FULL, false))
+        val throttlePull = inputData.getBoolean(KEY_THROTTLE_PULL, false)
+        var outcome = engine.sync(uid, inputData.getBoolean(KEY_FULL, false), throttlePull)
 
         // Edits made while the run was in progress are picked up by a follow-up pass.
         var extraPasses = 0
         while (outcome is SyncEngine.Outcome.Success && outcome.rejected == 0 && extraPasses < 2 && pendingRows(uid) > 0) {
             changed += outcome.changedTaskIds
-            outcome = engine.sync(uid)
+            outcome = engine.sync(uid, throttlePull = throttlePull)
             extraPasses++
         }
 
@@ -55,6 +56,7 @@ class SyncWorker @AssistedInject constructor(
 
     companion object {
         const val KEY_FULL = "full"
+        const val KEY_THROTTLE_PULL = "throttle_pull"
         /** With 30 s exponential backoff this spans roughly two hours before giving up until the next trigger. */
         const val MAX_ATTEMPTS = 8
     }

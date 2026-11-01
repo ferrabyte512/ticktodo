@@ -40,15 +40,16 @@ Details in [architecture.md](../architecture.md) and [sync-design.md](../sync-de
 | A21 | P3 | `ListWidgetConfigActivity` accepted any widget id | Fixed: only this app's widgets |
 | A22 | P3 | Reminders missed during a force-stop never shown | Fixed: caught up (6 h grace) when the app opens |
 | A23 | P3 | Task grouping/sorting ran on the main thread | Fixed: `Dispatchers.Default` |
-| — | P3 | Not changed (documented in known-limitations): incremental pull re-reads this device's own pushes; widgets refresh "today" hourly; no field-level merge; baseline profile hand-written | Open |
+| A24 | P2 | Firestore reads: every run re-read the document at the cursor and every run on app open pulled even when the last pull was seconds old (free-tier risk at ~900 daily actives) | Fixed: exact (time, id) cursors, pull throttled to 10 min for routine runs, periodic 12 h, own pushes not re-applied; 26 reads/device/busy day measured in tests, down from 44 on the previous commit (same scenario) |
+| — | P3 | Not changed (documented in known-limitations): widgets refresh "today" hourly; no field-level merge; baseline profile hand-written | Open |
 
 ## 3–10. Improvements by area
 
 * **Crashes/stability:** A3, A10–A14, exception handler on the application scope.
 * **UI/UX:** A9, A15, A16; design system verified in light and dark on device.
 * **State management:** single Room source of truth confirmed; Undo actions now run in a ViewModel scope so they complete even if the snackbar host leaves composition; search joins the shared Undo pattern.
-* **Database:** v4 index, exported schema, migration test; all multi-row writes already transactional.
-* **Integration:** Firestore rules tightened and tested (23/23 on the emulator); user isolation re-verified by both audits.
+* **Database:** v4 index and v5 sync-cursor columns, exported schemas, migration test; all multi-row writes already transactional.
+* **Integration:** Firestore rules tightened, tested (23/23 on the emulator) and deployed; user isolation re-verified by both audits; Firestore usage kept inside the Spark free quota (see A24).
 * **Security:** repository history scanned for secrets (none); backups disabled; cleartext disabled; exported components minimal; threat model written.
 * **Performance:** grouping off main thread; busy loop removed; baseline profile present (hand-written).
 * **Accessibility:** content descriptions on all icon buttons, swipe actions exposed as custom actions, drag-reorder has Move up/down actions, 4.5:1 contrast enforced by the theme, large-font layout test.
@@ -57,10 +58,10 @@ Details in [architecture.md](../architecture.md) and [sync-design.md](../sync-de
 
 | Check | Result |
 |---|---|
-| Unit + Robolectric UI tests (`:app:testDebugUnitTest`) | PASS — 100/100 (includes the new migration and layout tests) |
+| Unit + Robolectric UI tests (`:app:testDebugUnitTest`) | PASS — 106/106 (includes migration v1→v5, layout and free-tier sync tests) |
 | Android Lint (`:app:lintDebug`, abort on error) | PASS — 0 errors |
 | Firestore rules tests (emulator) | PASS — 23/23 |
-| Migration test v1 → v4 | PASS |
+| Migration test v1 → v5 | PASS |
 | Layout tests (320 dp phone, 960×600 tablet landscape, 2.0× font) | PASS |
 | Release build `:app:bundleRelease :app:assembleRelease` | PASS — `clean bundleRelease assembleRelease` succeeded; AAB 10.98 MB, APK 5.15 MB, R8 mapping produced |
 | AAB/APK signed with the upload key | PASS — `keytool -printcert` on the AAB shows `CN=Tick ToDo upload, O=Ferrabytes`, SHA-256 `D6:BF:5C:22:…:B5:A1:C0` |
@@ -75,7 +76,7 @@ See [known-limitations.md](../known-limitations.md).
 1. **Privacy policy:** written (FerraByte, ferrabyte512@gmail.com, version 1) and configured in `gradle.properties`; it goes live when the repository is pushed to GitHub as `ferrabyte512/ticktodo` and GitHub Pages is enabled from `main` → `/docs`. Configured values:
    `ticktodo.privacyPolicyUrl`, `ticktodo.termsUrl` (or leave terms empty), `ticktodo.supportEmail`. The app hides the links while they are empty.
 2. ~~Deploy the tightened Firestore rules~~ — deployed to `tick-todo-2916c` on 2026-11-01 after 23/23 emulator tests.
-3. **Firebase console:** add the upload key's SHA-1/SHA-256 (SHA-1 `FF:5C:EA:FC:D7:93:3F:B7:CD:BB:13:FC:5B:E3:90:97:69:3F:CB:9D`, SHA-256 `D6:BF:5C:22:74:A7:6C:75:B6:4D:AF:AF:1A:96:C1:06:57:1A:04:61:9D:1A:BA:47:E6:23:71:35:27:B5:A1:C0`) and, after the first Play upload, the Play App Signing fingerprints; Blaze plan + budget alert; App Check enforcement stays off until the Play build shows verified traffic.
+3. **Firebase console:** add the upload key's SHA-1/SHA-256 (SHA-1 `FF:5C:EA:FC:D7:93:3F:B7:CD:BB:13:FC:5B:E3:90:97:69:3F:CB:9D`, SHA-256 `D6:BF:5C:22:74:A7:6C:75:B6:4D:AF:AF:1A:96:C1:06:57:1A:04:61:9D:1A:BA:47:E6:23:71:35:27:B5:A1:C0`) and, after the first Play upload, the Play App Signing fingerprints. The project stays on the free Spark plan (nothing needs Blaze); App Check enforcement stays off until the Play build shows verified traffic and the Play Integrity quota (10 K/day) is comfortably above daily active devices.
 4. **Back up** the secrets folder (`E:\E\ticktodo-secrets`: upload keystore, `keystore.properties`, `google-services.json`, the signed AAB) to a password manager or an encrypted offline copy.
 5. **Play Console:** Data safety form from `data-safety.md`; exact-alarm and full-screen-intent declarations; store listing from `store-listing.md`; internal testing track first.
 

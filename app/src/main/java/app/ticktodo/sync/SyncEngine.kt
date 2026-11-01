@@ -50,6 +50,8 @@ class SyncEngine @Inject constructor(
             val conflicts: Int,
             val rejected: Int,
             val changedTaskIds: Set<String>,
+            /** False when the pull was throttled and only local changes were pushed. */
+            val pulledFromServer: Boolean = true,
         ) : Outcome
 
         data class Failed(val code: RemoteException.Code, val retryable: Boolean) : Outcome
@@ -64,32 +66,43 @@ class SyncEngine @Inject constructor(
     private val listDao = db.taskListDao()
     private val stateDao = db.syncStateDao()
 
-    suspend fun sync(uid: String, forceFull: Boolean = false): Outcome = lock.mutex.withLock {
+    /**
+     * One pass. With [throttlePull] (app opened, or a local edit) the pull is
+     * skipped while the last one is younger than [PULL_THROTTLE_MS]: local
+     * changes are still pushed at once, and other devices' changes arrive on
+     * the next unthrottled or periodic run. Explicit "Sync now" and sign-in
+     * never throttle.
+     */
+    suspend fun sync(uid: String, forceFull: Boolean = false, throttlePull: Boolean = false): Outcome = lock.mutex.withLock {
         if (session.uid.value != uid) return Outcome.Skipped
         val start = clock.now()
         val state = stateDao.get(uid) ?: SyncStateEntity(uid)
         stateDao.upsert(state.copy(lastAttemptAt = start))
         val full = forceFull || state.lastSuccessAt == null || start - state.lastSuccessAt > FULL_RESYNC_AFTER_MS
+        val pullNow = full || !throttlePull || state.lastPullAt == null || start - state.lastPullAt >= PULL_THROTTLE_MS
 
         val stats = Stats()
         try {
-            val listsCursor = pull(uid, Collection.LISTS, if (full) 0 else state.listsCursor, full, stats)
-            val tasksCursor = pull(uid, Collection.TASKS, if (full) 0 else state.tasksCursor, full, stats)
+            val lists = if (pullNow) pull(uid, Collection.LISTS, Cursor(state.listsCursor, state.listsCursorId), full, stats) else null
+            val tasks = if (pullNow) pull(uid, Collection.TASKS, Cursor(state.tasksCursor, state.tasksCursorId), full, stats) else null
             push(uid, Collection.LISTS, stats)
             push(uid, Collection.TASKS, stats)
             val purgedAt = purge(uid, state, start)
             ensureSameUser(uid)
             stateDao.upsert(
                 state.copy(
-                    listsCursor = listsCursor,
-                    tasksCursor = tasksCursor,
+                    listsCursor = lists?.at ?: state.listsCursor,
+                    listsCursorId = lists?.id ?: state.listsCursorId,
+                    tasksCursor = tasks?.at ?: state.tasksCursor,
+                    tasksCursorId = tasks?.id ?: state.tasksCursorId,
                     lastAttemptAt = start,
                     lastSuccessAt = clock.now(),
+                    lastPullAt = if (pullNow) clock.now() else state.lastPullAt,
                     lastErrorCode = if (stats.rejected > 0) REJECTED_CODE else null,
                     lastRemotePurgeAt = purgedAt,
                 ),
             )
-            Outcome.Success(stats.pulled, stats.pushed, stats.conflicts, stats.rejected, stats.changedTaskIds)
+            Outcome.Success(stats.pulled, stats.pushed, stats.conflicts, stats.rejected, stats.changedTaskIds, pulledFromServer = pullNow)
         } catch (e: UserChanged) {
             Outcome.Skipped
         } catch (e: RemoteException) {
@@ -114,18 +127,27 @@ class SyncEngine @Inject constructor(
         if (session.uid.value != uid) throw UserChanged()
     }
 
-    /** Returns the new cursor (largest server commit time seen). */
-    private suspend fun pull(uid: String, collection: Collection, since: Long, full: Boolean, stats: Stats): Long {
-        var cursor = since
+    /** Where a pull resumes: the commit time and id of the last document already applied. */
+    private data class Cursor(val at: Long, val id: String?)
+
+    /**
+     * Returns the new cursor: the last document of the last page. Pages are
+     * ordered by (commit time, id) and the next pull starts strictly after
+     * this position, so documents committed later (even with the same
+     * timestamp) are never skipped and nothing is read twice.
+     */
+    private suspend fun pull(uid: String, collection: Collection, since: Cursor, full: Boolean, stats: Stats): Cursor {
+        val from = if (full) Cursor(0, null) else since
+        var cursor = from
         var after: Any? = null
         val seen = if (full) HashSet<String>() else null
         do {
-            val page = remote.pullPage(uid, collection, since, PAGE_SIZE, after)
+            val page = remote.pullPage(uid, collection, from.at, from.id, PAGE_SIZE, after)
             ensureSameUser(uid)
             db.withTransaction {
                 for (doc in page.docs) {
                     seen?.add(doc.id)
-                    cursor = maxOf(cursor, doc.serverUpdatedAt)
+                    cursor = Cursor(doc.serverUpdatedAt, doc.id)
                     val remoteUpdatedAt = RemoteMapper.updatedAtOf(doc) ?: continue
                     when (collection) {
                         Collection.TASKS -> {
@@ -134,7 +156,10 @@ class SyncEngine @Inject constructor(
                             if (local?.dirty == true) stats.conflicts++
                             if (decision == ConflictResolver.Decision.TAKE_REMOTE) {
                                 val entity = RemoteMapper.taskFromRemote(doc, uid, local) ?: continue
-                                if (entity != local) {
+                                if (local != null && entity == local.copy(serverUpdatedAt = entity.serverUpdatedAt)) {
+                                    // This device's own push coming back: only the server time is new.
+                                    if (entity != local) taskDao.upsert(entity)
+                                } else if (entity != local) {
                                     taskDao.upsert(entity)
                                     stats.pulled++
                                     stats.changedTaskIds += doc.id
@@ -147,7 +172,9 @@ class SyncEngine @Inject constructor(
                             if (local?.dirty == true) stats.conflicts++
                             if (decision == ConflictResolver.Decision.TAKE_REMOTE) {
                                 val entity = RemoteMapper.listFromRemote(doc, uid, local) ?: continue
-                                if (entity != local) {
+                                if (local != null && entity == local.copy(serverUpdatedAt = entity.serverUpdatedAt)) {
+                                    if (entity != local) listDao.upsert(entity)
+                                } else if (entity != local) {
                                     listDao.upsert(entity)
                                     stats.pulled++
                                 }
@@ -267,6 +294,8 @@ class SyncEngine @Inject constructor(
         const val REMOTE_TOMBSTONE_TTL_MS = 90 * DAY_MS
         /** Must stay below the remote tombstone TTL so devices learn about purged deletions. */
         const val FULL_RESYNC_AFTER_MS = 60 * DAY_MS
+        /** Foreground and after-edit runs skip the pull while the last one is this recent. */
+        const val PULL_THROTTLE_MS = 10 * 60_000L
         const val REJECTED_CODE = "REJECTED"
     }
 }

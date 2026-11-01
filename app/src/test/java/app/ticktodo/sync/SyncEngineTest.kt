@@ -29,7 +29,7 @@ private class Device(val remote: FakeRemoteStore, uid: String, val clock: FakeCl
     val session = FakeSession(uid)
     val repo = TaskRepository(db, session, clock, RecordingEffects())
     val engine = SyncEngine(db, remote, session, clock, SyncLock())
-    suspend fun sync() = engine.sync(session.uid.value!!)
+    suspend fun sync(throttlePull: Boolean = false) = engine.sync(session.uid.value!!, throttlePull = throttlePull)
     suspend fun task(id: String) = db.taskDao().get(session.uid.value!!, id)
 }
 
@@ -203,5 +203,118 @@ class SyncEngineTest {
         val id = a.repo.create(TaskDraft("Deep work", focusPlan = plan))
         a.sync(); b.sync()
         assertEquals(plan, b.repo.observeTask(id).first()!!.focusPlan)
+    }
+
+    // ---- Free-tier read behaviour --------------------------------------------------------------
+
+    @Test fun `pages split inside a group of equal commit times lose nothing and are never re-read`() = runBlocking<Unit> {
+        val a = device(); val b = device()
+        remote.freezeServerClock = true
+        val ids = (1..5).map { a.repo.create(TaskDraft("T$it")) }
+        a.sync()
+        remote.freezeServerClock = false
+
+        remote.pageSizeOverride = 2
+        val first = b.sync()
+        assertIs<SyncEngine.Outcome.Success>(first)
+        ids.forEach { assertNotNull(b.task(it), "b should have $it") }
+
+        val before = remote.billedReads
+        val second = b.sync()
+        assertIs<SyncEngine.Outcome.Success>(second)
+        assertEquals(0, second.pulled)
+        // Nothing new: one empty page per collection, nothing at the cursor read again.
+        assertEquals(2, remote.billedReads - before)
+    }
+
+    @Test fun `a device's own push is not reported as a change when it comes back`() = runBlocking<Unit> {
+        val a = device()
+        val id = a.repo.create(TaskDraft("Mine"))
+        a.sync()
+        assertNull(a.task(id)!!.serverUpdatedAt)
+
+        val again = a.sync()
+        assertIs<SyncEngine.Outcome.Success>(again)
+        assertEquals(0, again.pulled)
+        assertTrue(again.changedTaskIds.isEmpty())
+        assertNotNull(a.task(id)!!.serverUpdatedAt, "server time recorded quietly")
+        assertEquals(false, a.task(id)!!.dirty)
+    }
+
+    @Test fun `a throttled run pushes at once but pulls only after ten minutes`() = runBlocking<Unit> {
+        val a = device(); val b = device()
+        a.sync()
+        val fromB = b.repo.create(TaskDraft("From B"))
+        b.sync()
+
+        a.clock.advance(60_000)
+        val fromA = a.repo.create(TaskDraft("From A"))
+        val pulls = remote.pullCalls
+        val throttled = a.sync(throttlePull = true)
+        assertIs<SyncEngine.Outcome.Success>(throttled)
+        assertEquals(false, throttled.pulledFromServer)
+        assertEquals(pulls, remote.pullCalls)
+        assertNotNull(remote.get("alice", Collection.TASKS, fromA), "pushed without waiting")
+        assertEquals(false, a.task(fromA)!!.dirty)
+        assertNull(a.task(fromB), "pull skipped")
+
+        a.clock.advance(SyncEngine.PULL_THROTTLE_MS)
+        val later = a.sync(throttlePull = true)
+        assertIs<SyncEngine.Outcome.Success>(later)
+        assertEquals(true, later.pulledFromServer)
+        assertNotNull(a.task(fromB))
+
+        // An explicit sync is never throttled.
+        val fromB2 = b.repo.create(TaskDraft("From B again")); b.sync()
+        a.sync()
+        assertNotNull(a.task(fromB2))
+    }
+
+    @Test fun `a deletion made during a throttled run reaches the other device`() = runBlocking<Unit> {
+        val a = device(); val b = device()
+        val id = a.repo.create(TaskDraft("Soon gone"))
+        a.sync(); b.sync()
+        assertNotNull(b.task(id))
+        a.repo.delete(listOf(id))
+        a.sync(throttlePull = true)
+        b.sync()
+        assertEquals(true, b.task(id)!!.deleted)
+    }
+
+    @Test fun `after a failed run the next one resumes from the saved cursor`() = runBlocking<Unit> {
+        val a = device(); val b = device()
+        repeat(3) { a.repo.create(TaskDraft("Old $it")) }
+        a.sync(); b.sync()
+        val new1 = a.repo.create(TaskDraft("New 1")); val new2 = a.repo.create(TaskDraft("New 2"))
+        a.sync()
+
+        remote.failWith = RemoteException.Code.NETWORK
+        assertIs<SyncEngine.Outcome.Failed>(b.sync())
+        remote.failWith = null
+
+        val before = remote.billedReads
+        assertIs<SyncEngine.Outcome.Success>(b.sync())
+        assertNotNull(b.task(new1)); assertNotNull(b.task(new2))
+        // Two new task documents plus one empty lists page: the three old tasks were not read again.
+        assertEquals(3, remote.billedReads - before)
+    }
+
+    @Test fun `a typical day of use stays small in reads`() = runBlocking<Unit> {
+        // One device, already synced: 8 app opens, 6 edits spread over the day, 2 periodic runs.
+        val a = device()
+        a.repo.create(TaskDraft("Existing")); a.sync()
+        val before = remote.billedReads
+        var writes = remote.pushCalls
+        repeat(8) { open ->
+            a.clock.advance(90 * 60_000L)
+            a.sync(throttlePull = true)                      // app opened
+            if (open % 4 == 1) a.sync()                      // periodic run
+            if (open < 6) { a.repo.create(TaskDraft("Edit $open")); a.sync(throttlePull = true) }
+        }
+        val reads = remote.billedReads - before
+        writes = remote.pushCalls - writes
+        println("READS_PER_DAY=$reads WRITES_PER_DAY=$writes")
+        assertEquals(6, writes)
+        assertTrue(reads <= 40, "reads for a busy day should stay well under 50, got $reads")
     }
 }

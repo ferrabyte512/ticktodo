@@ -7,6 +7,7 @@ import app.ticktodo.data.remote.RemoteStore.RemoteDoc
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Source
 import com.google.firebase.FirebaseNetworkException
@@ -32,12 +33,20 @@ class FirestoreRemoteStore @Inject constructor(
         return firebase.firestore.collection("users").document(uid).collection(c.path)
     }
 
-    override suspend fun pullPage(uid: String, collection: Collection, sinceMillis: Long, pageSize: Int, after: Any?): Page = call {
+    override suspend fun pullPage(uid: String, collection: Collection, sinceMillis: Long, sinceId: String?, pageSize: Int, after: Any?): Page = call {
+        // Ordering by commit time then document id makes (time, id) a total order, so a
+        // cursor can resume exactly after the last document seen. No composite index is
+        // needed: __name__ is always the implicit last sort key.
         var query = col(uid, collection)
             .whereGreaterThanOrEqualTo(SERVER_UPDATED_AT, sinceMillis.toTimestamp())
             .orderBy(SERVER_UPDATED_AT)
+            .orderBy(FieldPath.documentId())
             .limit(pageSize.toLong())
-        if (after is DocumentSnapshot) query = query.startAfter(after)
+        query = when {
+            after is DocumentSnapshot -> query.startAfter(after)
+            sinceId != null -> query.startAfter(sinceMillis.toTimestamp(), sinceId)
+            else -> query
+        }
         val snap = query.get(Source.SERVER).await()
         val docs = snap.documents.mapNotNull { it.toRemoteDoc() }
         Page(docs, if (snap.size() < pageSize) null else snap.documents.last())

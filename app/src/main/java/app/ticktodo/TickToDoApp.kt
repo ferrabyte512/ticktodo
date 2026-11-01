@@ -71,7 +71,7 @@ class TickToDoApp : Application(), Configuration.Provider {
             override fun onStart(owner: LifecycleOwner) {
                 scope.launch {
                     if (session.get().uid.value != null) {
-                        syncScheduler.get().requestSync(delaySeconds = 0)
+                        syncScheduler.get().requestSync(delaySeconds = 0, throttlePull = true)
                         // A force-stop (or an aggressive battery manager) drops the app's alarms;
                         // opening the app puts them back and shows any reminder missed meanwhile.
                         reminders.get().rescheduleAll(catchUpMissed = true)

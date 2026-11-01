@@ -67,6 +67,7 @@ class MigrationTest {
             assertTrue(names.any { it.contains("completed_completedAt") }, "v4 index present: $names")
         }
         db.query("SELECT COUNT(*) FROM focus_sessions").use { c -> assertTrue(c.moveToFirst()); assertEquals(0, c.getInt(0)) }
+        db.query("SELECT tasksCursorId, listsCursorId, lastPullAt FROM sync_state").use { c -> assertEquals(0, c.count) }
         db.close()
     }
 }

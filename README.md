@@ -285,7 +285,8 @@ The bundle is written to `app/build/outputs/bundle/release/app-release.aab`. Rel
 ## 7. How it works
 
 - **Local first:** every change is written to Room right away and marked `dirty`. The UI reads only from Room, so the app behaves the same online and offline.
-- **Sync:** WorkManager runs `SyncWorker` when there is a network connection: shortly after each change, when the app opens, and every 6 hours.
+- **Sync:** WorkManager runs `SyncWorker` when there is a network connection: shortly after each change, when the app opens, and every 12 hours. Runs triggered by opening the app or editing push local changes immediately but only *pull* other devices' changes if the last pull is older than 10 minutes; "Sync now", pull-to-refresh and sign-in always pull.
+- **Firebase plan:** the app is designed to run on the free **Spark** plan. Nothing it uses needs Blaze (no Storage, Functions or Hosting). Firestore's free daily quota (50,000 reads, 20,000 writes, 20,000 deletes, 1 GiB) is shared by all users of the project; a busy day costs a device about 26 reads and 6 writes, so the quota covers roughly 1,500 daily active devices. If it is ever exhausted, Firestore refuses requests until the daily reset (midnight Pacific): the app keeps working offline, shows "Daily sync limit reached", and syncs again the next day. Play Integrity (App Check) has its own free quota of 10,000 attestations per day; request an increase in the Play Console once the app is live if daily active users approach ~1,000.
   - Each run pulls remote changes since a stored cursor, then pushes each dirty row in a check-and-write transaction.
   - Runs survive process death and reboot, retry with exponential backoff, and are idempotent.
 - **Conflicts:** last writer wins per task, based on the time of the edit.

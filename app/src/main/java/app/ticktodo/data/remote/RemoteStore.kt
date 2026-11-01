@@ -22,8 +22,14 @@ interface RemoteStore {
         data class RemoteWins(val doc: RemoteDoc) : PushResult
     }
 
-    /** Documents whose server commit time is at or after [sinceMillis], oldest first. */
-    suspend fun pullPage(uid: String, collection: Collection, sinceMillis: Long, pageSize: Int, after: Any?): Page
+    /**
+     * Documents ordered by server commit time, then id, oldest first. With
+     * [sinceId] the page starts strictly after the document at
+     * ([sinceMillis], [sinceId]), so nothing already pulled is read again and
+     * nothing is skipped even when several documents share a commit time.
+     * Without it, documents at or after [sinceMillis] are returned.
+     */
+    suspend fun pullPage(uid: String, collection: Collection, sinceMillis: Long, sinceId: String?, pageSize: Int, after: Any?): Page
 
     /**
      * Writes [data] unless the stored document has an `updatedAt` greater than

@@ -28,12 +28,16 @@ emulator test suite (`firebase/rules-tests`).
 
 ## One sync pass (`SyncEngine.sync`)
 
-1. **Pull**: for each collection, query documents with
-   `serverUpdatedAt > cursor`, ordered by `serverUpdatedAt`, in pages. For each
+1. **Pull**: for each collection, query documents ordered by
+   (`serverUpdatedAt`, document id) starting strictly after the saved cursor,
+   which is the (time, id) of the last document applied. Because that is a
+   total order, two documents sharing a commit time can never be skipped at a
+   page boundary, and nothing already applied is read again. For each
    document: if the local row is clean, replace it; if it is dirty, keep the
    version with the greater `updatedAt` (ties favour the remote copy, which is
-   already on the server). Malformed documents are skipped and logged by type.
-   The cursor advances to the last page's `serverUpdatedAt`.
+   already on the server). A document that is this device's own push coming
+   back only has its server time recorded and is not reported as a change.
+   Malformed documents are skipped and logged by type.
 2. **Push**: dirty rows, oldest first, in batches. Each push is a Firestore
    transaction: read the current document; if its `updatedAt` is newer than
    ours, the remote wins and the local row is replaced; otherwise write ours
@@ -60,8 +64,17 @@ offline therefore produce the same next-occurrence document instead of two.
 
 * A one-off `SyncWorker` is enqueued after every local change (3 s initial
   delay, `KEEP` policy so a burst of edits becomes one run) and immediately
-  when the app comes to the foreground.
-* A periodic worker runs every 6 hours.
+  when the app comes to the foreground. These routine runs are
+  **pull-throttled**: they push dirty rows at once but skip the pull while the
+  last pull is less than 10 minutes old. Sign-in, "Sync now" and
+  pull-to-refresh request an unthrottled run, which replaces a queued
+  throttled one.
+* A periodic worker runs every 12 hours.
+* Cost on the Firestore free tier: a run that pulls costs at least one read
+  per collection (an empty query bills one read); each push costs one read
+  (the transaction's check) and one write, and the pushed document is read
+  once more by the next pull. Measured in `SyncEngineTest`, a busy day (8 app
+  opens, 6 edits, 2 periodic runs) costs 26 reads and 6 writes per device.
 * Both require a connected network and use exponential backoff.
 * All sync work is cancelled on sign-out, and the local rows of any other
   account are deleted on sign-in (`AccountService.onSignedIn`).

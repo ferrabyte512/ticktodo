@@ -304,8 +304,8 @@
     <string name="sync_err_db_title">Cloud storage is not set up yet</string>
     <string name="sync_err_db_body">Your tasks are saved on this device and will sync once the service is available.</string>
     <string name="sync_err_db_dev">Developer: the Firebase project has no Cloud Firestore database. Create it in Firebase console &gt; Firestore Database &gt; Create database (production mode), then deploy the rules.</string>
-    <string name="sync_err_busy_title">Sync service is busy</string>
-    <string name="sync_err_busy_body">Sync will retry automatically in a little while.</string>
+    <string name="sync_err_busy_title">Daily sync limit reached</string>
+    <string name="sync_err_busy_body">Your changes are saved on this device and will sync when the daily limit resets.</string>
     <string name="sync_err_refused_title">Some changes could not be saved to the cloud</string>
     <string name="sync_err_refused_body">They are kept on this device. Updating the app usually fixes this.</string>
     <string name="sync_err_refused_dev">Developer: the security rules rejected a document. Make sure the deployed firestore.rules match this app version.</string>

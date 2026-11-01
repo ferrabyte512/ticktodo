@@ -99,6 +99,11 @@ data class SyncStateEntity(
     val lastAttemptAt: Long? = null,
     val lastErrorCode: String? = null,
     val lastRemotePurgeAt: Long? = null,
+    /** Id of the last document pulled at [tasksCursor] / [listsCursor], so a pull resumes exactly after it. */
+    val tasksCursorId: String? = null,
+    val listsCursorId: String? = null,
+    /** When the last pull ran; foreground runs skip the pull while this is recent. */
+    val lastPullAt: Long? = null,
 )
 
 data class TaskWithCounts(

@@ -55,6 +55,13 @@ class FakeRemoteStore : RemoteStore {
     /** Document ids the "rules" refuse to accept. */
     val rejectIds = mutableSetOf<String>()
     var pushCalls = 0
+    var pullCalls = 0
+    /** Documents returned by pulls: what Firestore would bill as reads (an empty page bills one). */
+    var billedReads = 0
+    /** Forces every page to this size, to exercise pagination. */
+    var pageSizeOverride: Int? = null
+    /** When true, pushes share one server commit time, like a batch of writes landing together. */
+    var freezeServerClock = false
 
     fun all(uid: String, c: Collection): List<RemoteDoc> =
         docs.filterKeys { it.first == uid && it.second == c }.values.sortedBy { it.serverUpdatedAt }
@@ -63,13 +70,17 @@ class FakeRemoteStore : RemoteStore {
 
     private fun check() { failWith?.let { throw RemoteException(it) } }
 
-    override suspend fun pullPage(uid: String, collection: Collection, sinceMillis: Long, pageSize: Int, after: Any?): Page {
+    override suspend fun pullPage(uid: String, collection: Collection, sinceMillis: Long, sinceId: String?, pageSize: Int, after: Any?): Page {
         check()
-        val sorted = all(uid, collection).filter { it.serverUpdatedAt >= sinceMillis }
+        pullCalls++
+        val size = pageSizeOverride ?: pageSize
+        val sorted = all(uid, collection)
+            .filter { if (sinceId == null) it.serverUpdatedAt >= sinceMillis else it.serverUpdatedAt > sinceMillis || (it.serverUpdatedAt == sinceMillis && it.id > sinceId) }
             .sortedWith(compareBy({ it.serverUpdatedAt }, { it.id }))
         val start = (after as? Int) ?: 0
-        val page = sorted.drop(start).take(pageSize)
-        return Page(page, if (page.size < pageSize) null else start + page.size)
+        val page = sorted.drop(start).take(size)
+        billedReads += maxOf(1, page.size)
+        return Page(page, if (page.size < size) null else start + page.size)
     }
 
     override suspend fun pushIfNewer(uid: String, collection: Collection, id: String, data: Map<String, Any?>, updatedAt: Long): PushResult {
@@ -79,8 +90,13 @@ class FakeRemoteStore : RemoteStore {
         val key = Triple(uid, collection, id)
         val existing = docs[key]
         val existingUpdated = existing?.let { RemoteMapper.updatedAtOf(it) }
-        if (existing != null && existingUpdated != null && existingUpdated >= updatedAt) return PushResult.RemoteWins(existing)
-        docs[key] = RemoteDoc(id, data, ++serverClock)
+        if (existing != null && existingUpdated != null && existingUpdated >= updatedAt) {
+            billedReads++
+            return PushResult.RemoteWins(existing)
+        }
+        // The transaction's read of the current document is billed too.
+        billedReads++
+        docs[key] = RemoteDoc(id, data, if (freezeServerClock) serverClock else ++serverClock)
         return PushResult.Written
     }
 

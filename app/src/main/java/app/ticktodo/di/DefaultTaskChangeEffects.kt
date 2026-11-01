@@ -28,10 +28,10 @@ class DefaultTaskChangeEffects @Inject constructor(
             }
         }
         widget.update()
-        sync.requestSync()
+        sync.requestSync(throttlePull = true)
     }
 
     override fun listsChanged() {
-        sync.requestSync()
+        sync.requestSync(throttlePull = true)
     }
 }

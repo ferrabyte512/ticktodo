@@ -25,8 +25,11 @@ in [launch-readiness.md](launch-readiness.md) for the current version.
 
 ## 3. Firebase console
 
-- [ ] Project is on the **Blaze** plan with a budget alert (Spark quotas stop
-      sync for everyone once exceeded).
+- [ ] Project stays on the **Spark** (free) plan: confirm *Usage and billing*
+      shows Spark and no billing account is attached. Nothing in the app needs
+      Blaze. Check *Firestore → Usage* occasionally: the free quota is
+      50 K reads / 20 K writes / 20 K deletes per day for the whole project;
+      when exhausted, sync pauses until the daily reset and the app says so.
 - [ ] Android app in the project has the **Play App Signing** SHA-1 and
       SHA-256 fingerprints (Play Console → App integrity), in addition to the
       upload key's.
@@ -34,7 +37,10 @@ in [launch-readiness.md](launch-readiness.md) for the current version.
       e-mail enumeration protection on.
 - [ ] App Check: Play Integrity registered; Firestore enforcement is
       **Unenforced** until the Play-distributed build shows >95 % verified
-      requests in App Check metrics, then **Enforced**.
+      requests in App Check metrics, then **Enforced**. Play Integrity allows
+      10,000 attestations/day by default (about one per device per hour of
+      use); request a higher quota from Play Console → App integrity once the
+      app is live and before daily active users approach 1,000.
 - [ ] Firestore: point-in-time recovery or scheduled backups enabled.
 - [ ] Google Cloud → Credentials: the Android API key is restricted to
       `com.ferrabytes.ticktodo` + the SHA-1 fingerprints.

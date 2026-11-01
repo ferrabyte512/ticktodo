@@ -44,8 +44,9 @@ cannot crash sync or other devices.
 
 ### T3. Abuse of the backend by non-app clients (quota exhaustion, scraping)
 *Mitigation*: App Check with Play Integrity in release builds; enforcement is
-a console switch (see release checklist). Firestore budget alerts are
-recommended before launch.
+a console switch (see release checklist). The project runs on the Spark plan,
+so abuse cannot create a bill: exhausting the free quota pauses the service
+until the daily reset, which the app reports to users.
 *Residual*: before enforcement is turned on, a scripted client holding a valid
 user token can read/write only its own data, bounded by the rules.
 
