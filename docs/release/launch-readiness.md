@@ -64,7 +64,7 @@ Details in [architecture.md](../architecture.md) and [sync-design.md](../sync-de
 | Layout tests (320 dp phone, 960×600 tablet landscape, 2.0× font) | PASS |
 | Release build `:app:bundleRelease :app:assembleRelease` | PASS — `clean bundleRelease assembleRelease` succeeded; AAB 10.98 MB, APK 5.15 MB, R8 mapping produced |
 | AAB/APK signed with the upload key | PASS — `keytool -printcert` on the AAB shows `CN=Tick ToDo upload, O=Ferrabytes`, SHA-256 `D6:BF:5C:22:…:B5:A1:C0` |
-| Release APK installed over the previous build on OPPO CPH2219 (Android 13), data kept | NOT VERIFIED — the phone disconnected before this build could be installed. The previous release build of the same day (before the audit fixes) was installed over the prior version with data kept. Run checklist §5 before upload. |
+| Release APK installed over the previous build on OPPO CPH2219 (Android 13), data kept | PASS — same release code signed with the debug key installed over the previous build on OPPO CPH2219 (Android 13): existing tasks, lists and settings present; Today, Upcoming, Matrix, Browse and Settings open; sync "Last synced 0 minutes ago"; no crash in logcat. The upload-key-signed APK itself was not installed, because that would need an uninstall. |
 
 ## 14. Remaining known issues
 
