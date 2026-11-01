@@ -18,10 +18,9 @@ from a widget after the process was killed. Two-device synchronisation and a
 device restart could not be exercised physically (one phone; no reboot
 authorised) and are covered by automated tests and a written procedure.
 
-Three items remain before **production**: store assets (screenshots, feature
-graphic) do not exist yet (**BLOCKER** for the listing, not for internal
-testing), one stale sentence on the focus-setup screen, and the console steps
-listed in `launch-readiness.md` §15.
+Store assets and the focus-setup wording were completed after the audit (see
+§10). What remains before **production** are the console steps listed in
+`launch-readiness.md` §15 and the two-device run on the first internal build.
 
 ## 2. Two-device synchronisation
 
@@ -124,7 +123,7 @@ listed in `launch-readiness.md` §15.
 | Data safety answers prepared | PASS (`data-safety.md`) — must be entered in the console |
 | Account deletion in-app + policy mention (Play requirement) | PASS |
 | App icon (adaptive + monochrome) | PASS |
-| Screenshots (min 2 phone), feature graphic 1024×500 | **BLOCKER** — none exist yet |
+| Screenshots (min 2 phone), feature graphic 1024×500 | PASS — `docs/release/assets/` (10 × 1080×1920 PNG, 1024×500 feature graphic) |
 | Target SDK 36 (Play requires ≥ 35 for new apps since Aug 2025) | PASS |
 | Permissions: 6, all justified; no AD_ID | PASS |
 | Notification permission requested in context (first reminder) | PASS |
@@ -137,9 +136,9 @@ listed in `launch-readiness.md` §15.
 |---|---|---|---|
 | A25 | P0 | Release builds could not sign in: `default_web_client_id` removed by the resource shrinker | Fixed (`res/raw/keep.xml`), verified on device and in the AAB |
 | A26 | P3 | Offline strip said "1 changes" | Fixed (plurals) |
-| A27 | P3 | Focus-setup text still says "a longer break after a few rounds" (long breaks were removed) | **Proposed fix, awaiting approval** |
+| A27 | P3 | Focus-setup text still said "a longer break after a few rounds" (long breaks were removed) | Fixed (string); bundle rebuilt, previous AAB kept as `ticktodo-1.0.0-1.before-focus-text.aab.bak` |
 | A28 | P3 | OPPO launcher shows the app icon instead of widget preview layouts | Proposed: ship `previewImage` PNGs rendered from the preview layouts (optional) |
-| — | — | Store assets missing | Proposed: capture 6 phone screenshots (light + dark) from this device and generate a 1024×500 feature graphic |
+| — | — | Store assets missing | Done: 10 phone screenshots (1080×1920, light and dark, Emerald default) and a 1024×500 feature graphic in `docs/release/assets/` |
 
 ## 11. Files modified in this validation
 
@@ -168,6 +167,7 @@ landscape, 2× font): PASS.
 
 ## 14. Recommendation
 
-**Approved for Play internal testing** with the current AAB. For the
-production listing: add the store assets (blocker), apply the A27 text fix,
-run the two-device procedure once, then follow `launch-readiness.md` §15.
+**Approved for Play internal testing** with `release/v1.0.0/ticktodo-1.0.0-1.aab`
+(rebuilt after the A27 fix; web client id verified inside). Before production:
+run the two-device procedure once on the internal build, then follow
+`launch-readiness.md` §15.

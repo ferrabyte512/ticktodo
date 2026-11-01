@@ -85,3 +85,14 @@ Privacy policy: [privacy policy URL]
 | Feature graphic | 1024 × 500 PNG | Original artwork only; no competitor imagery |
 | Phone screenshots | 2–8, 1080 × 1920 or larger | Use real app screens with sample tasks you created yourself |
 | Tablet screenshots | Optional | Recommended because the app supports large screens |
+
+## Graphic assets
+
+| Asset | File |
+|---|---|
+| Feature graphic (1024×500) | `assets/feature_graphic_1024x500.png` |
+| Phone screenshots (1080×1920, 9:16) | `assets/01_today_dark.png` … `assets/10_add_task_light.png` — dark: Today, Upcoming, Matrix, Add task, Focus, Settings; light: Today, Matrix, Appearance, Add task |
+
+Captured from a release build on an OPPO CPH2219 with the default Emerald
+accent. Re-capture when the UI changes.
+

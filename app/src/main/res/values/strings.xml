@@ -257,7 +257,7 @@
     <string name="focus_in_progress">In focus</string>
     <string name="focus_minutes_short">%1$d min focus</string>
     <string name="focus_mark_done">Mark task as done</string>
-    <string name="focus_setup_intro">Work in focused rounds with short breaks in between, and a longer break after a few rounds. Adjust it to suit this task.</string>
+    <string name="focus_setup_intro">Work in focused rounds with short breaks in between. Adjust it to suit this task.</string>
     <string name="focus_save_for_task">Remember this plan for this task</string>
     <string name="focus_other_running">A session is already running. Start one for “%1$s” instead?</string>
     <string name="focus_switch_task">Switch to this task</string>
