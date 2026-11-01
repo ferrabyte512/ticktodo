@@ -1,11 +1,16 @@
-# Tick ToDo privacy policy (draft)
+---
+title: Tick ToDo privacy policy
+---
 
-**Effective date:** _set on publication_
-**Controller:** Ferrabytes (_add legal entity name, address and contact e-mail_)
+# Tick ToDo privacy policy
 
-This draft describes what the current version of the app actually does. It
-must be reviewed by a qualified person before publication and the placeholders
-must be filled in.
+**Version:** 1
+**Effective date:** 1 November 2026
+**Controller:** FerraByte
+**Contact:** ferrabyte512@gmail.com
+
+This policy describes what the Tick ToDo Android app (package
+`com.ferrabytes.ticktodo`) does with your information.
 
 ## What the app stores
 
@@ -32,11 +37,11 @@ on your device is removed at the same time.
 ## Analytics
 
 The app includes Firebase Analytics, which records automatic events such as
-app open, screen views and crashes-free sessions, together with coarse device
-information (model, OS version, country derived from IP, app version). The app
-does not log task content or any custom event containing personal data, and
-the Android Advertising ID is not collected (the permission is removed from
-the app).
+app open and screen views, together with coarse device information (model,
+OS version, country derived from IP address, app version) and a
+per-installation identifier. The app does not log task content or any custom
+event containing personal data, and the Android Advertising ID is not
+collected (the permission is removed from the app).
 
 ## App integrity
 
@@ -51,16 +56,18 @@ title of the task is hidden until you unlock it.
 
 ## What we do not do
 
-* We do not sell or share your data with third parties for their own purposes.
+* We do not sell your data, and we do not share it with third parties for
+  their own purposes.
 * We do not show advertising in this version.
 * We do not read your contacts, location, photos (beyond a wallpaper you
   choose yourself through the system picker), camera or microphone.
 
 ## Where data is processed
 
-Firebase services are provided by Google LLC. Data may be processed in Google
-data centres outside your country. _State the Firestore region configured for
-the project and the applicable transfer mechanism._
+Firebase services are provided by Google LLC. Your tasks are stored in the
+Cloud Firestore database of our project, located in the `nam5` (United States) multi-region,
+and may be processed in Google data centres outside your country under
+Google's standard contractual safeguards.
 
 ## Retention
 
@@ -76,10 +83,12 @@ country) and does not knowingly collect their data.
 ## Your rights
 
 Depending on where you live you may have the right to access, correct, export
-or erase your data. Export: _describe the export feature or how to request
-one_. Erasure: Settings → Delete account, or contact us at _e-mail_.
+or erase your data. You can erase everything yourself from Settings → Delete
+account. For an export, or any other request, e-mail
+ferrabyte512@gmail.com from the address of your Google account and we will
+respond within 30 days.
 
 ## Changes
 
 We will update this policy when the app's behaviour changes and show the new
-effective date here.
+version number and effective date here.

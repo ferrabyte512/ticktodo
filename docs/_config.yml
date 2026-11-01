@@ -1,0 +1,9 @@
+---
+title: Tick ToDo
+exclude:
+  - research
+  - release
+  - security
+  - architecture.md
+  - sync-design.md
+  - known-limitations.md

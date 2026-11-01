@@ -72,7 +72,7 @@ See [known-limitations.md](../known-limitations.md).
 
 ## 15. Release blockers (owner actions)
 
-1. **Privacy policy:** publish `docs/legal/privacy-policy.md` (fill the placeholders: legal entity, contact e-mail, Firestore region, export procedure) at a public URL and set in `gradle.properties`:
+1. **Privacy policy:** written (FerraByte, ferrabyte512@gmail.com, version 1) and configured in `gradle.properties`; it goes live when the repository is pushed to GitHub as `artemis-rv/ticktodo` and GitHub Pages is enabled from `main` → `/docs`. Configured values:
    `ticktodo.privacyPolicyUrl`, `ticktodo.termsUrl` (or leave terms empty), `ticktodo.supportEmail`. The app hides the links while they are empty.
 2. ~~Deploy the tightened Firestore rules~~ — deployed to `tick-todo-2916c` on 2026-11-01 after 23/23 emulator tests.
 3. **Firebase console:** add the upload key's SHA-1/SHA-256 (SHA-1 `FF:5C:EA:FC:D7:93:3F:B7:CD:BB:13:FC:5B:E3:90:97:69:3F:CB:9D`, SHA-256 `D6:BF:5C:22:74:A7:6C:75:B6:4D:AF:AF:1A:96:C1:06:57:1A:04:61:9D:1A:BA:47:E6:23:71:35:27:B5:A1:C0`) and, after the first Play upload, the Play App Signing fingerprints; Blaze plan + budget alert; App Check enforcement stays off until the Play build shows verified traffic.
