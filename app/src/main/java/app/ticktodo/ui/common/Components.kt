@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -74,7 +75,7 @@ fun StatusStrip(offline: Boolean, sync: SyncStatus, onRetry: () -> Unit, onDetai
             Icon(if (offline) Icons.Outlined.CloudOff else Icons.Outlined.ErrorOutline, null, Modifier.size(20.dp))
             Text(
                 text = when {
-                    offline && sync.pending > 0 -> stringResource(R.string.status_offline_pending, sync.pending)
+                    offline && sync.pending > 0 -> pluralStringResource(R.plurals.status_offline_pending, sync.pending, sync.pending)
                     offline -> stringResource(R.string.status_offline)
                     else -> syncErrorTitle(error!!)
                 },

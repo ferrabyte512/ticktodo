@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "firebase emulators:exec --only firestore --project demo-ticktodo --config ../../firebase.json \"node --test rules.test.mjs\"",
+    "test": "firebase emulators:exec --only firestore --project demo-ticktodo --config ../../firebase.json \"node --test --test-concurrency=1 rules.test.mjs cursor.test.mjs\"",
     "deploy": "firebase deploy --only firestore:rules,firestore:indexes --config ../../firebase.json"
   },
   "devDependencies": {

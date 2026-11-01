@@ -139,7 +139,10 @@
 
     <!-- Status and messages -->
     <string name="status_offline">Offline. Changes are saved on this device.</string>
-    <string name="status_offline_pending">Offline. %1$d changes will sync when you reconnect.</string>
+    <plurals name="status_offline_pending">
+        <item quantity="one">Offline. %1$d change will sync when you reconnect.</item>
+        <item quantity="other">Offline. %1$d changes will sync when you reconnect.</item>
+    </plurals>
     <string name="msg_completed_repeating">Completed. The next one is scheduled.</string>
     <string name="msg_completed_many">Completed %1$d tasks</string>
     <string name="msg_deleted">Deleted</string>
