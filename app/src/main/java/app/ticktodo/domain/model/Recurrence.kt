@@ -10,13 +10,28 @@ data class Recurrence(
     val frequency: Frequency,
     val interval: Int = 1,
     val daysOfWeek: Set<DayOfWeek> = emptySet(),
+    /**
+     * For monthly and yearly rules, the day of month the task started on
+     * (BYMONTHDAY). A task due on the 31st falls on the 28th in February but
+     * returns to the 31st in March; without the anchor it would drift to the 28th
+     * for good. Null for rules saved by older versions, which keep stepping from
+     * the previous date.
+     */
+    val dayOfMonth: Int? = null,
 ) {
     enum class Frequency { DAILY, WEEKLY, MONTHLY, YEARLY }
 
     init {
         require(interval in 1..MAX_INTERVAL) { "interval out of range" }
         require(daysOfWeek.isEmpty() || frequency == Frequency.WEEKLY) { "BYDAY only applies to weekly rules" }
+        require(dayOfMonth == null || (dayOfMonth in 1..31 && (frequency == Frequency.MONTHLY || frequency == Frequency.YEARLY))) {
+            "BYMONTHDAY only applies to monthly and yearly rules"
+        }
     }
+
+    /** The rule with its anchor day set from [date], if it needs one and has none. */
+    fun anchoredTo(date: java.time.LocalDate): Recurrence =
+        if (dayOfMonth == null && (frequency == Frequency.MONTHLY || frequency == Frequency.YEARLY)) copy(dayOfMonth = date.dayOfMonth) else this
 
     fun encode(): String = buildString {
         append("FREQ=").append(frequency.name)
@@ -25,6 +40,7 @@ data class Recurrence(
             append(";BYDAY=")
             append(daysOfWeek.sorted().joinToString(",") { DAY_CODES.getValue(it) })
         }
+        if (dayOfMonth != null) append(";BYMONTHDAY=").append(dayOfMonth)
     }
 
     val isWeekdays: Boolean
@@ -57,7 +73,9 @@ data class Recurrence(
             val days = parts["BYDAY"]?.split(',')?.filter { it.isNotBlank() }?.map { CODE_DAYS[it] ?: return null }?.toSet()
                 ?: emptySet()
             if (days.isNotEmpty() && frequency != Frequency.WEEKLY) return null
-            return Recurrence(frequency, interval, days)
+            val dayOfMonth = parts["BYMONTHDAY"]?.let { it.toIntOrNull() ?: return null }
+            if (dayOfMonth != null && (dayOfMonth !in 1..31 || (frequency != Frequency.MONTHLY && frequency != Frequency.YEARLY))) return null
+            return Recurrence(frequency, interval, days, dayOfMonth)
         }
     }
 }

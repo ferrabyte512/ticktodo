@@ -1,6 +1,8 @@
 ﻿package app.ticktodo.ui.settings
 
 import android.Manifest
+import androidx.compose.material.icons.outlined.Fullscreen
+import android.os.Build
 import android.content.Intent
 import androidx.core.net.toUri
 import android.text.format.DateUtils
@@ -111,11 +113,13 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     var notificationsOk by remember { mutableStateOf(true) }
     var exactOk by remember { mutableStateOf(true) }
+    var fullScreenOk by remember { mutableStateOf(true) }
     var showFocusPlan by remember { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
         notificationsOk = ReminderPermissions.notificationsAllowed(context)
         exactOk = ReminderPermissions.exactAlarmsAllowed(context)
+        fullScreenOk = ReminderPermissions.fullScreenAllowed(context)
         viewModel.onPermissionsMaybeChanged()
         onPauseOrDispose { }
     }
@@ -198,6 +202,16 @@ fun SettingsScreen(
                     problemText = stringResource(R.string.health_exact_off),
                     onFix = { ReminderPermissions.exactAlarmSettingsIntent(context)?.let { runCatching { context.startActivity(it) } } },
                 )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    HealthItem(
+                        icon = Icons.Outlined.Fullscreen,
+                        title = stringResource(R.string.health_full_screen),
+                        ok = fullScreenOk,
+                        okText = stringResource(R.string.health_allowed),
+                        problemText = stringResource(R.string.health_full_screen_off),
+                        onFix = { ReminderPermissions.fullScreenSettingsIntent(context)?.let { runCatching { context.startActivity(it) } } },
+                    )
+                }
 
                 // Focus timer
                 SectionTitle(stringResource(R.string.focus_section))

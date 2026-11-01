@@ -183,6 +183,20 @@ test('accepts a manual sort position and rejects a non-numeric one', async () =>
   await assertFails(setDoc(taskRef(alice()), task({ sortOrder: 'first' })));
 });
 
+test('rejects tags that are not strings and tags that are too long in total', async () => {
+  await assertFails(setDoc(taskRef(alice()), task({ tags: [{ name: 'x' }] })));
+  await assertFails(setDoc(taskRef(alice()), task({ tags: Array.from({ length: 20 }, () => 'x'.repeat(40)) })));
+  await assertSucceeds(setDoc(taskRef(alice()), task({ tags: Array.from({ length: 20 }, (_, i) => `tag${i}`) })));
+});
+
+test('rejects inconsistent timestamps, schema and completion fields', async () => {
+  await assertFails(setDoc(taskRef(alice()), task({ schema: 2 })));
+  await assertFails(setDoc(taskRef(alice()), task({ createdAt: 1_700_000_000_001, updatedAt: 1_700_000_000_000 })));
+  await assertFails(setDoc(taskRef(alice()), task({ completed: false, completedAt: 1_700_000_000_000 })));
+  await assertFails(setDoc(taskRef(alice()), task({ dueEpochDay: -1 })));
+  await assertSucceeds(setDoc(taskRef(alice()), task({ completed: true, completedAt: 1_700_000_000_000, dueEpochDay: 20_000 })));
+});
+
 test('rejects an id that does not match the document path', async () => {
   await assertFails(setDoc(taskRef(alice()), task({ id: 'something-else' })));
 });

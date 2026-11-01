@@ -1,0 +1,76 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, test, lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # Firebase config is a secret, not a committed file. Without it the app
+      # builds in "not configured" mode, which is enough for compilation and tests.
+      - name: Restore google-services.json
+        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Lint
+        run: ./gradlew :app:lintDebug --no-daemon
+
+      - name: Release build (unsigned if no keystore secrets)
+        env:
+          TICKTODO_KEYSTORE_PASSWORD: ${{ secrets.TICKTODO_KEYSTORE_PASSWORD }}
+          TICKTODO_KEY_ALIAS: ${{ secrets.TICKTODO_KEY_ALIAS }}
+          TICKTODO_KEY_PASSWORD: ${{ secrets.TICKTODO_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            app/build/reports/tests/testDebugUnitTest
+            app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
+  firestore-rules:
+    name: Firestore rules tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21  # firebase-tools needs 21+ for the emulator
+      - name: Install
+        working-directory: firebase/rules-tests
+        run: npm ci
+      - name: Test rules against the emulator
+        working-directory: firebase/rules-tests
+        run: npx firebase-tools emulators:exec --only firestore --project demo-ticktodo --config ../../firebase.json "node --test rules.test.mjs"

@@ -136,7 +136,7 @@ class TaskRepository @Inject constructor(
                     dueEpochDay = if (hasDate) draft.dueDate!!.toEpochDay() else null,
                     dueMinuteOfDay = if (hasDate) draft.dueTime?.toMinuteOfDay() else null,
                     reminderOffsetMinutes = if (hasDate) draft.reminderOffsetMinutes else null,
-                    recurrenceRule = if (hasDate) draft.recurrence?.encode() else null,
+                    recurrenceRule = if (hasDate) draft.recurrence?.anchoredTo(draft.dueDate!!)?.encode() else null,
                     tags = TagCodec.encode(TaskValidator.cleanTags(draft.tags)),
                     focusPlan = draft.focusPlan?.encode(),
                     completed = false,
@@ -174,7 +174,7 @@ class TaskRepository @Inject constructor(
                 dueEpochDay = if (hasDate) task.dueDate!!.toEpochDay() else null,
                 dueMinuteOfDay = if (hasDate) task.dueTime?.toMinuteOfDay() else null,
                 reminderOffsetMinutes = if (hasDate) task.reminderOffsetMinutes else null,
-                recurrenceRule = if (hasDate) task.recurrence?.encode() else null,
+                recurrenceRule = if (hasDate) task.recurrence?.anchoredTo(task.dueDate!!)?.encode() else null,
                 tags = TagCodec.encode(TaskValidator.cleanTags(task.tags)),
                 focusPlan = task.focusPlan?.encode(),
             )
@@ -366,7 +366,7 @@ class TaskRepository @Inject constructor(
     }
 
     private suspend fun taskIdsInList(uid: String, listId: String): List<String> =
-        db.query("SELECT id FROM tasks WHERE ownerUid = ? AND listId = ?", arrayOf(uid, listId)).use { c ->
+        db.query("SELECT id FROM tasks WHERE ownerUid = ? AND listId = ? AND deleted = 0", arrayOf(uid, listId)).use { c ->
             buildList { while (c.moveToNext()) add(c.getString(0)) }
         }
 

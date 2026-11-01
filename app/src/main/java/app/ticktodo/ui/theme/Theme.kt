@@ -19,7 +19,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
@@ -371,6 +370,3 @@ fun TickTheme(
         MaterialTheme(colorScheme = finalScheme, typography = AppTypography, shapes = AppShapes, content = content)
     }
 }
-
-/** For callers that only need the accent colour as an ARGB int (e.g. previews). */
-fun Color.argb(): Int = toArgb()

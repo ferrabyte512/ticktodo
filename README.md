@@ -16,11 +16,11 @@ A lightweight personal to-do app for Android. Tasks are stored on the device fir
 | **Reliable reminders** | Exact alarms, snooze and complete from the notification, re-armed after reboot and time changes, and a *Reminder health* checklist |
 | **Focus timer sessions** | Opt-in per task. Focus and break rounds with custom lengths that repeat until you stop, pause / skip / stop, live notification countdown, focus statistics |
 | **Home-screen widgets** | Today & overdue · Upcoming · Task list (any list, tag or view) · Quick add · Focus timer |
-| **Themes** | Six colour themes (Jade, Ocean, Sunset, Lavender, Rose, Graphite), light/dark/system, optional wallpaper colours, large easy-to-tap task cards |
+| **Themes** | Ten accent presets (Emerald by default) or any custom colour; every shade of the app is derived from the accent, so a blue accent gives a navy dark mode and a pale-blue light mode. Light/dark/system, optional wallpapers, large easy-to-tap task cards |
 | **Offline + sync** | Works fully offline; syncs through Firestore when online; per-user security rules |
 | **Account control** | Google sign-in, sign-out with unsynced-change warning, in-app account and data deletion |
 
-> **Status (2026-10-21):** On this machine the project builds and passes its checks: debug APK, release `.aab`, Android Lint with 0 errors, 54/54 unit and UI tests, and 20/20 Firestore rules tests. It has **not** been tested on a physical device by the maintainer yet, and nothing is published to Google Play.
+> **Status (2026-11-01):** CI (GitHub Actions) and this machine build the debug APK and release `.aab`, with Android Lint at 0 errors, 99/99 unit and UI tests and 23/23 Firestore rules tests passing. See `docs/release/launch-readiness.md` for the per-item verification status.
 
 ---
 
@@ -49,7 +49,7 @@ The project builds and launches **without** any Firebase setup. In that case the
 | Tool | Version | Notes |
 |---|---|---|
 | Android Studio | Latest stable | Bundles a JDK and the SDK manager |
-| JDK | 17 or 21 | Only needed for the command line; Android Studio bundles one |
+| JDK | 17 or newer to run Gradle; Gradle then provisions the pinned toolchain (`gradle/gradle-daemon-jvm.properties`) itself | Android Studio bundles one |
 | Android SDK | Platform 37, Build-Tools 37 | Android Studio installs these on first sync |
 
 ### Option A: Android Studio (recommended)
@@ -86,7 +86,7 @@ You do this once per Firebase project.
 
 ### 2.1 Create the Firebase project
 
-1. Go to <https://console.firebase.google.com> and choose **Add project**. Google Analytics is not needed.
+1. Go to <https://console.firebase.google.com> and choose **Add project**. Enable Google Analytics if you want the automatic usage events the app ships with (`firebase-analytics`); the app works either way.
 2. **Build → Firestore Database → Create database**:
    - Choose **Production mode**.
    - Pick a location, for example `asia-south1` (Mumbai) for users in India. **The location cannot be changed later.**
@@ -95,7 +95,7 @@ You do this once per Firebase project.
 ### 2.2 Register the Android app
 
 1. **Project settings → Your apps → Add app → Android**.
-2. **Package name:** use the value of `ticktodo.applicationId` in [`gradle.properties`](gradle.properties). The default is `com.example.ticktodo`.
+2. **Package name:** use the value of `ticktodo.applicationId` in [`gradle.properties`](gradle.properties). The current value is `com.ferrabytes.ticktodo`.
    Change it to your own ID (for example `com.yourcompany.ticktodo`) **before** this step and before your first Play upload. It can never change after publishing.
 3. Add your **SHA-1** and **SHA-256** debug fingerprints. Google sign-in fails without them:
 
@@ -180,16 +180,16 @@ adb reverse tcp:9099 tcp:9099
 |---|---|---|
 | Unit and Robolectric tests (domain logic, Room, sync engine, UI components) | `./gradlew :app:testDebugUnitTest` | JDK only |
 | Android Lint (correctness and security checks) | `./gradlew :app:lintDebug` | JDK only |
-| Firestore security rules tests | `cd firebase/rules-tests && npm install && npm test` | Node 18+, Java 11+ (for the emulator) |
+| Firestore security rules tests | `cd firebase/rules-tests && npm install && npm test` | Node 18+, JDK 21+ for the emulator (set `JAVA_HOME` to it) |
 
 Last run (2026-10-21):
-- **Unit and UI tests:** 54/54 pass.
-  - Sync engine: 13, including two simulated devices editing the same task offline, deletion propagation, account isolation and failure handling.
-  - Repository: 9.
-  - Focus engine: 9.
-  - Task card UI and accessibility: 3.
-  - Recurrence, validation, conflicts, reminders and grouping: 20.
-- **Rules tests:** 20/20 pass.
+- **Unit and UI tests:** 99/99 pass (`./gradlew :app:testDebugUnitTest`).
+  - Sync engine: 15, including two simulated devices editing the same task offline, deletion propagation, account isolation and failure handling.
+  - Repository and celebrations: 13; database migrations 1→4: 1.
+  - Focus engine: 12.
+  - Recurrence, validation, conflicts, reminders, grouping and manual order: 26.
+  - Theme maths, appearance settings, rendered screenshots, task card, layouts (small phone, tablet landscape, 2× font): 32.
+- **Rules tests:** 23/23 pass (`cd firebase/rules-tests && npm test`).
 - **Lint:** 0 errors.
 
 Test reports:
@@ -310,7 +310,7 @@ The bundle is written to `app/build/outputs/bundle/release/app-release.aab`. Rel
 
 | Setting | Where | Default | Purpose |
 |---|---|---|---|
-| `ticktodo.applicationId` | `gradle.properties` | `com.example.ticktodo` | Play package name. **Change before the first upload.** |
+| `ticktodo.applicationId` | `gradle.properties` | `com.ferrabytes.ticktodo` | Play package name. Fixed once the app is on Play. |
 | `ticktodo.versionCode` / `versionName` | `gradle.properties` | `1` / `1.0.0` | App version |
 | `ticktodo.privacyPolicyUrl` / `termsUrl` / `supportEmail` | `gradle.properties` | empty | Shown in the app when set |
 | `ticktodo.useEmulator` | `-P` flag | `false` | Debug builds use the local Firebase emulators |
@@ -333,7 +333,7 @@ The app now says exactly what went wrong, with **Retry** and **Details** buttons
 | **Sign-in expired** | The Firebase session was revoked. | Sign out and sign in again. |
 | **Some changes could not be saved** | The deployed rules are older than the app (for example, missing the `focusPlan` field). | Deploy the rules from this repository again. |
 
-**Deploy the rules and indexes** (once per Firebase project, and again whenever `firebase/firestore.rules` changes). `.firebaserc` already points at your project (`tick-todo-2916c`) and is git-ignored:
+**Deploy the rules and indexes** (once per Firebase project, and again whenever `firebase/firestore.rules` changes). `.firebaserc` is git-ignored; create it with `firebase use --add` (or copy `.firebaserc.example`) so it points at your project and is git-ignored:
 
 ```bash
 cd firebase/rules-tests
@@ -375,17 +375,15 @@ npm test
 | `docs/research/policy-and-legal-research.md` | Play, Firebase, AdMob and Indian/GDPR requirements (for legal review) |
 | `docs/release/store-listing.md` | Play Store title, short and full description, screenshot captions |
 
-The following documents are still to be written:
-
-- architecture
-- sync design
-- threat model and security test results
-- legal drafts
-- Data safety declaration
-- store listing
-- release checklist
-- licence inventory
-- known limitations
+| `docs/architecture.md` | Modules, data flow, state management, DI, build variants |
+| `docs/sync-design.md` | Offline-first sync: bookkeeping columns, pull/push, conflicts, scheduling |
+| `docs/security/threat-model.md` | Assets, trust boundaries, threats and mitigations, permissions |
+| `docs/legal/privacy-policy.md` | Privacy policy draft (placeholders must be filled before publishing) |
+| `docs/release/data-safety.md` | Play Console Data safety form answers |
+| `docs/release/release-checklist.md` | Step-by-step release procedure |
+| `docs/release/signing.md` | Upload key creation, storage and verification |
+| `docs/release/launch-readiness.md` | Verification status of every launch criterion |
+| `docs/known-limitations.md` | What the app deliberately does not do yet |
 
 ---
 

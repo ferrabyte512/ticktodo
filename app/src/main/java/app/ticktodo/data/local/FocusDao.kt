@@ -16,9 +16,6 @@ interface FocusDao {
     @Query("SELECT COALESCE(SUM(focusMs), 0) FROM focus_sessions WHERE ownerUid = :uid AND endedAt >= :since")
     fun observeTotalSince(uid: String, since: Long): Flow<Long>
 
-    @Query("SELECT COUNT(*) FROM focus_sessions WHERE ownerUid = :uid AND endedAt >= :since AND focusMs >= :minMs")
-    fun observeRoundsSince(uid: String, since: Long, minMs: Long): Flow<Int>
-
     @Query("DELETE FROM focus_sessions WHERE ownerUid != :uid")
     suspend fun deleteOtherOwners(uid: String): Int
 }

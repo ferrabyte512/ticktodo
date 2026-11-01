@@ -23,6 +23,8 @@ import androidx.room.PrimaryKey
         Index(value = ["ownerUid", "listId"]),
         Index(value = ["ownerUid", "parentId"]),
         Index(value = ["ownerUid", "dirty"]),
+        // Completed list and the "done today" count sort/filter by completion time.
+        Index(value = ["ownerUid", "completed", "completedAt"]),
     ],
 )
 data class TaskEntity(

@@ -30,6 +30,20 @@ fun signingValue(key: String, env: String): String? =
 val releaseStoreFile = signingValue("storeFile", "TICKTODO_KEYSTORE_FILE")
 val releaseSigningAvailable = releaseStoreFile != null && rootProject.file(releaseStoreFile).exists()
 
+// A release artefact without Firebase config or a signing key is never what anyone
+// wants to upload, so the build stops instead of quietly producing one. CI that has
+// no secrets passes -Pticktodo.allowIncompleteRelease=true to check compilation only.
+val releaseRequested = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+if (releaseRequested && !gradleProp("ticktodo.allowIncompleteRelease", "false").toBoolean()) {
+    val missing = buildList {
+        if (!hasFirebaseConfig) add("app/google-services.json (sign-in and sync would be disabled)")
+        if (!releaseSigningAvailable) add("release signing (keystore.properties or TICKTODO_KEYSTORE_* variables; see docs/release/signing.md)")
+    }
+    if (missing.isNotEmpty()) {
+        error("Release build refused, missing: ${missing.joinToString("; ")}. Pass -Pticktodo.allowIncompleteRelease=true to build anyway.")
+    }
+}
+
 fun gradleProp(name: String, default: String = ""): String =
     providers.gradleProperty(name).orNull ?: default
 
@@ -97,6 +111,10 @@ android {
             isReturnDefaultValues = true
         }
     }
+
+    // The exported Room schemas double as assets for the migration test. Only the
+    // debug variant (which unit tests run against) gets them; release never ships them.
+    sourceSets.getByName("debug").assets.srcDir("$projectDir/schemas")
 
     lint {
         abortOnError = true
@@ -167,12 +185,10 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.androidx.room.testing)
-    testImplementation(libs.androidx.work.testing)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
 }

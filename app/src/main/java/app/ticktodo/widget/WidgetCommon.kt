@@ -70,7 +70,8 @@ data class WidgetTask(
     val overdue: Boolean,
 )
 
-private val PriorityColors = mapOf(3 to Color(0xFFD9483B), 2 to Color(0xFFE08A00), 1 to Color(0xFF4A7FC9))
+// Same values as ExtraColors in ui/theme/Theme.kt (light), so widgets and app agree.
+private val PriorityColors = mapOf(3 to Color(0xFFE5484D), 2 to Color(0xFFD8960F), 1 to Color(0xFF3285E8))
 
 fun TaskEntity.toWidgetTask(context: Context, today: LocalDate): WidgetTask {
     val due = dueEpochDay?.let(LocalDate::ofEpochDay)

@@ -134,9 +134,11 @@ fun QuickAddSheet(
             ) {
                 DateChip(Icons.Outlined.Today, stringResource(R.string.date_today), dueDate == today) {
                     dueEpochDay = if (dueDate == today) null else today.toEpochDay()
+                    if (dueEpochDay == null) dueMinute = null
                 }
                 DateChip(Icons.Outlined.WbSunny, stringResource(R.string.date_tomorrow), dueDate == today.plusDays(1)) {
                     dueEpochDay = if (dueDate == today.plusDays(1)) null else today.plusDays(1).toEpochDay()
+                    if (dueEpochDay == null) dueMinute = null
                 }
                 val customDate = dueDate != null && dueDate != today && dueDate != today.plusDays(1)
                 DateChip(Icons.Outlined.CalendarToday, if (customDate) formatDate(dueDate!!, today) else stringResource(R.string.pick_date), customDate) {

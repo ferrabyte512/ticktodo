@@ -144,7 +144,10 @@ class TaskEditorViewModel @Inject constructor(
     fun removeTag(tag: String) = edit { it.copy(tags = it.tags - tag) }
 
     /** Saves if anything changed. Returns false (and flags the title) when the title is empty. */
+    private var saving = false
+
     fun save(onSaved: () -> Unit) {
+        if (saving) return
         val s = local.value
         val original = state.value.original ?: run { onSaved(); return }
         val f = s.form
@@ -164,12 +167,15 @@ class TaskEditorViewModel @Inject constructor(
             tags = f.tags,
             focusPlan = f.focusPlan,
         )
+        saving = true
         viewModelScope.launch {
             try {
                 if (updated != original) repository.update(updated)
                 onSaved()
             } catch (e: InvalidInputException) {
                 messenger.show(UiMessage(R.string.error_invalid_task))
+            } finally {
+                saving = false
             }
         }
     }

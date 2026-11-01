@@ -7,8 +7,8 @@ import javax.inject.Singleton
 
 /**
  * Integration point for advertising. Version 1 ships with ads disabled and no
- * ads SDK in the build. docs/ads-integration.md describes how to add AdMob
- * with the User Messaging Platform consent flow behind this interface.
+ * ads SDK in the build. If ads are ever added, an AdMob implementation with the
+ * User Messaging Platform consent flow goes behind this interface.
  *
  * Placement rules (enforced by where [AdSlot] is used, not by this code):
  * never on the task editor, quick add, reminders, sign-in or settings screens,
@@ -32,5 +32,5 @@ enum class AdPlacement { BROWSE_FOOTER }
 @Composable
 fun AdSlot(gateway: AdsGateway, placement: AdPlacement, modifier: Modifier = Modifier) {
     if (!gateway.enabled) return
-    // AdMob banner view goes here once the SDK is added (see docs/ads-integration.md).
+    // An AdMob banner view goes here once an SDK is added.
 }

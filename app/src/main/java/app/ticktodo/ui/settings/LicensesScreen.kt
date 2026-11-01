@@ -26,7 +26,7 @@ private val NOTICES = listOf(
     "Material Components for Compose and Material Icons" to "Apache License 2.0",
     "Kotlin standard library, kotlinx.coroutines, kotlinx.serialization" to "Apache License 2.0",
     "Dagger / Hilt" to "Apache License 2.0",
-    "Firebase Android SDK (Auth, Firestore, App Check)" to "Apache License 2.0",
+    "Firebase Android SDK (Auth, Firestore, App Check, Analytics)" to "Apache License 2.0",
     "Google Identity Services (googleid)" to "Apache License 2.0",
     "Google Play services libraries" to "Android Software Development Kit License",
 )

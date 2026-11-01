@@ -36,6 +36,9 @@ import app.ticktodo.data.repository.TaskRepository
 import app.ticktodo.domain.model.TaskItem
 import app.ticktodo.domain.model.TaskList
 import app.ticktodo.ui.common.DayTicker
+import app.ticktodo.ui.common.Celebrations
+import app.ticktodo.ui.common.UiMessage
+import app.ticktodo.ui.common.UiMessenger
 import app.ticktodo.ui.common.EmptyState
 import app.ticktodo.ui.common.ListBadge
 import app.ticktodo.ui.common.TaskRow
@@ -64,6 +67,8 @@ data class SearchUiState(
 class SearchViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val repository: TaskRepository,
+    private val messenger: UiMessenger,
+    private val celebrations: Celebrations,
     dayTicker: DayTicker,
 ) : ViewModel() {
     private val query = savedStateHandle.getStateFlow("q", "")
@@ -80,11 +85,22 @@ class SearchViewModel @Inject constructor(
     fun setQuery(value: String) { savedStateHandle["q"] = value.take(100) }
 
     fun toggleComplete(item: TaskItem) {
-        viewModelScope.launch { repository.setCompleted(item.task.id, !item.task.isCompleted) }
+        viewModelScope.launch {
+            val change = repository.setCompleted(item.task.id, !item.task.isCompleted) ?: return@launch
+            if (change.completed) {
+                messenger.show(UiMessage(celebrations.taskDoneMessage(), actionLabel = R.string.action_undo, onAction = { repository.undoCompletion(change) }))
+                celebrations.afterCompletion(item.task.id)
+            }
+        }
     }
 
     fun delete(item: TaskItem) {
-        viewModelScope.launch { repository.delete(listOf(item.task.id)) }
+        viewModelScope.launch {
+            val affected = repository.delete(listOf(item.task.id))
+            if (affected.isNotEmpty()) {
+                messenger.show(UiMessage(R.string.msg_deleted, listOf(1), R.string.action_undo) { repository.restore(affected) })
+            }
+        }
     }
 }
 

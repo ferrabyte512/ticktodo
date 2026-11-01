@@ -59,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -144,7 +145,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
                 withDismissAction = msg.actionLabel == null,
                 duration = if (msg.actionLabel != null) SnackbarDuration.Long else SnackbarDuration.Short,
             )
-            if (result == SnackbarResult.ActionPerformed) msg.onAction?.invoke()
+            if (result == SnackbarResult.ActionPerformed) msg.onAction?.let { viewModel.runAction(it) }
         }
     }
 
@@ -153,7 +154,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
 
     LaunchedEffect(pending) {
         when (pending) {
-            is PendingAction.OpenTask -> nav.navigate(EditorRoute(pending.taskId))
+            is PendingAction.OpenTask -> nav.navigate(EditorRoute(pending.taskId)) { launchSingleTop = true }
             PendingAction.OpenFocus -> nav.navigate(FocusRoute()) { launchSingleTop = true }
             PendingAction.QuickAdd -> {
                 nav.navigateTopLevel(TopLevel.TODAY)
@@ -220,7 +221,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
                 }
                 Column(Modifier.weight(1f)) {
                 val showBanner = focusState != null && !onFocusScreen
-                if (showBanner) FocusBanner(focusState!!) { nav.navigate(FocusRoute()) { launchSingleTop = true } }
+                if (showBanner) FocusBanner(focusState!!, onTimeUp = viewModel::focusTimeUp) { nav.navigate(FocusRoute()) { launchSingleTop = true } }
                 NavHost(
                     nav,
                     startDestination = TodayRoute("today"),
@@ -235,7 +236,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
                 ) {
                     composable<TodayRoute> {
                         TasksScreen(
-                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenTask = { nav.open(EditorRoute(it)) },
                             onOpenSearch = { nav.navigate(SearchRoute) },
                             onOpenSettings = { nav.navigate(SettingsRoute) },
                             onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
@@ -246,7 +247,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
                     }
                     composable<UpcomingRoute> {
                         TasksScreen(
-                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenTask = { nav.open(EditorRoute(it)) },
                             onOpenSearch = { nav.navigate(SearchRoute) },
                             onOpenSettings = { nav.navigate(SettingsRoute) },
                             onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
@@ -255,7 +256,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
                     }
                     composable<ScopeRoute> {
                         TasksScreen(
-                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenTask = { nav.open(EditorRoute(it)) },
                             onOpenSearch = { nav.navigate(SearchRoute) },
                             onOpenSettings = { nav.navigate(SettingsRoute) },
                             onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
@@ -264,7 +265,7 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
                     }
                     composable<MatrixRoute> {
                         MatrixScreen(
-                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenTask = { nav.open(EditorRoute(it)) },
                             onOpenSearch = { nav.navigate(SearchRoute) },
                             onOpenSettings = { nav.navigate(SettingsRoute) },
                         )
@@ -279,12 +280,12 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
                     composable<EditorRoute> {
                         TaskEditorScreen(
                             onClose = { nav.popBackStack() },
-                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenTask = { nav.open(EditorRoute(it)) },
                             onStartFocus = { nav.navigate(FocusRoute(it)) },
                         )
                     }
                     composable<SearchRoute> {
-                        SearchScreen(onBack = { nav.popBackStack() }, onOpenTask = { nav.navigate(EditorRoute(it)) })
+                        SearchScreen(onBack = { nav.popBackStack() }, onOpenTask = { nav.open(EditorRoute(it)) })
                     }
                     composable<SettingsRoute> {
                         SettingsScreen(
@@ -320,6 +321,14 @@ private fun topLevelColors() = NavigationBarItemDefaults.colors(
     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
 )
 
+/**
+ * Pushes [route] only while the current screen is resumed: a double tap, or a
+ * tap during the exit fade, would otherwise open the same screen twice.
+ */
+private fun NavHostController.open(route: Any) {
+    if (currentBackStackEntry?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true) navigate(route)
+}
+
 private fun NavHostController.navigateTopLevel(item: TopLevel) {
     val route: Any = when (item) {
         TopLevel.TODAY -> TodayRoute("today")
@@ -338,12 +347,17 @@ private fun NavHostController.navigateTopLevel(item: TopLevel) {
 
 /** Slim bar shown on every screen while a focus session runs; tap to open the timer. */
 @Composable
-private fun FocusBanner(state: FocusState, onClick: () -> Unit) {
+private fun FocusBanner(state: FocusState, onTimeUp: () -> Unit, onClick: () -> Unit) {
     val context = LocalContext.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(state.running, state.phaseEndsAt) {
         while (state.running) {
             now = System.currentTimeMillis()
+            if (state.remainingMs(now) <= 0) {
+                // Advance the session now rather than spinning until the (possibly inexact) alarm.
+                onTimeUp()
+                break
+            }
             delay((((state.remainingMs(now) - 1) % 1000) + 1).coerceIn(20, 1000))
         }
         now = System.currentTimeMillis()

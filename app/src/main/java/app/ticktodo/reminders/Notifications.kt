@@ -63,7 +63,8 @@ object Notifications {
 
     /** All reminders share one group, so several due tasks collapse into a single expandable entry. */
     private const val GROUP_REMINDERS = "app.ticktodo.reminders"
-    private const val SUMMARY_ID = 7_100
+    // Fixed notification ids: 7_100 is the focus timer (FocusNotifications), 7_101 its alert.
+    private const val SUMMARY_ID = 7_200
     private const val EXTRA_DUE_AT = "app.ticktodo.due_at"
     private const val SUMMARY_LINES = 6
 
@@ -103,11 +104,10 @@ object Notifications {
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(publicVersion)
             .setContentIntent(open)
-            // Wakes the screen and shows over the lock screen like an alarm. Android 14+
-            // may ask the user to allow full-screen notifications for the app.
-            .setFullScreenIntent(open, true)
             .setAutoCancel(true)
             .setGroup(GROUP_REMINDERS)
+            // Wakes the screen and shows over the lock screen like an alarm, when the user allows it.
+            .apply { if (canUseFullScreen(context)) setFullScreenIntent(open, true) }
             // Zero-padded so the text order matches the deadline order.
             .setSortKey(dueAt.coerceAtLeast(0).toString().padStart(15, '0'))
             .setWhen(dueAt)
@@ -125,6 +125,11 @@ object Notifications {
         }
         refreshSummary(context)
     }
+
+    /** Whether the reminder may wake the screen; Android 14+ lets the user revoke this. */
+    fun canUseFullScreen(context: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+            context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
 
     fun cancel(context: Context, taskId: String) {
         NotificationManagerCompat.from(context).cancel(notificationId(taskId))

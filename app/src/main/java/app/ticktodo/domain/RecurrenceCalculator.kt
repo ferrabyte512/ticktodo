@@ -16,7 +16,9 @@ import java.time.temporal.TemporalAdjusters
  *  - If the computed date is still before [today] (the task was overdue for
  *    several periods) we keep stepping forward until it is today or later, so
  *    completing an old daily task does not create a pile of overdue copies.
- *  - Monthly rules on the 29th–31st clamp to the last day of shorter months.
+ *  - Monthly and yearly rules on the 29th–31st clamp to the last day of
+ *    shorter months and return to their anchor day afterwards (31 Jan → 28 Feb
+ *    → 31 Mar), using the rule's BYMONTHDAY anchor.
  */
 object RecurrenceCalculator {
 
@@ -34,11 +36,17 @@ object RecurrenceCalculator {
 
     private fun step(from: LocalDate, rule: Recurrence): LocalDate = when (rule.frequency) {
         Frequency.DAILY -> from.plusDays(rule.interval.toLong())
-        Frequency.MONTHLY -> from.plusMonths(rule.interval.toLong())
-        Frequency.YEARLY -> from.plusYears(rule.interval.toLong())
+        Frequency.MONTHLY -> from.plusMonths(rule.interval.toLong()).onAnchorDay(rule)
+        Frequency.YEARLY -> from.plusYears(rule.interval.toLong()).onAnchorDay(rule)
         Frequency.WEEKLY ->
             if (rule.daysOfWeek.isEmpty()) from.plusWeeks(rule.interval.toLong())
             else nextWeeklyByDay(from, rule.interval, rule.daysOfWeek)
+    }
+
+    /** Moves to the rule's anchor day of month, or the last day if the month is shorter. */
+    private fun LocalDate.onAnchorDay(rule: Recurrence): LocalDate {
+        val anchor = rule.dayOfMonth ?: return this
+        return withDayOfMonth(minOf(anchor, lengthOfMonth()))
     }
 
     private fun nextWeeklyByDay(from: LocalDate, interval: Int, days: Set<DayOfWeek>): LocalDate {

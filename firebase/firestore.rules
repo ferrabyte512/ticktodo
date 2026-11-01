@@ -12,9 +12,9 @@ service cloud.firestore {
     function common(id) {
       let d = request.resource.data;
       return d.id == id
-        && d.schema is int
-        && d.createdAt is int
-        && d.updatedAt is int
+        && d.schema == 1
+        && d.createdAt is int && d.createdAt > 0
+        && d.updatedAt is int && d.updatedAt >= d.createdAt
         && d.deleted is bool
         && d.serverUpdatedAt == request.time
         // Never overwrite a newer version (last-writer-wins, enforced server-side).
@@ -31,14 +31,16 @@ service cloud.firestore {
         && d.notes is string && d.notes.size() <= 10000
         && d.priority is int && d.priority >= 0 && d.priority <= 3
         && d.completed is bool
-        && d.tags is list && d.tags.size() <= 20
+        // Rules cannot loop, but join() only works on a list of strings and bounds the total length.
+        && d.tags is list && d.tags.size() <= 20 && d.tags.join(',').size() <= 660
         && (d.listId == null || (d.listId is string && d.listId.size() <= 64))
         && (d.parentId == null || (d.parentId is string && d.parentId.size() <= 64))
-        && (d.dueEpochDay == null || d.dueEpochDay is int)
+        // Epoch days between the years 1970 and 2243.
+        && (d.dueEpochDay == null || (d.dueEpochDay is int && d.dueEpochDay >= 0 && d.dueEpochDay <= 100000))
         && (d.dueMinuteOfDay == null || (d.dueMinuteOfDay is int && d.dueMinuteOfDay >= 0 && d.dueMinuteOfDay < 1440))
         && (d.reminderOffsetMinutes == null || (d.reminderOffsetMinutes is int && d.reminderOffsetMinutes >= 0 && d.reminderOffsetMinutes <= 10080))
         && (d.recurrence == null || (d.recurrence is string && d.recurrence.size() <= 100))
-        && (d.completedAt == null || d.completedAt is int)
+        && (d.completedAt == null || (d.completedAt is int && d.completed))
         // Optional (added in app schema 1 / v1.1); older documents do not have it.
         && (d.get('focusPlan', null) == null || (d.focusPlan is string && d.focusPlan.size() <= 60))
         // Optional (app v1.2): position in "My order".

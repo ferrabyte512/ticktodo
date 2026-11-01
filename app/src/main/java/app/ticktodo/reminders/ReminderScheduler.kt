@@ -110,11 +110,13 @@ class ReminderScheduler @Inject constructor(
         }
     }
 
+    /** Drops the alarm and any reminder already on screen (the task was completed, deleted or rescheduled). */
     fun cancel(taskId: String) {
         alarmIntent(taskId, PendingIntent.FLAG_NO_CREATE)?.let {
             alarmManager.cancel(it)
             it.cancel()
         }
+        Notifications.cancel(context, taskId)
     }
 
     private fun alarmIntent(taskId: String, flag: Int): PendingIntent? {

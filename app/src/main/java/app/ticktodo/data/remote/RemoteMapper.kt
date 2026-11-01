@@ -63,7 +63,7 @@ object RemoteMapper {
             title = title,
             notes = (d["notes"] as? String)?.take(TaskValidator.MAX_NOTES).orEmpty(),
             priority = (d.long("priority") ?: 0L).toInt().coerceIn(0, 3),
-            dueEpochDay = d.long("dueEpochDay"),
+            dueEpochDay = d.long("dueEpochDay")?.takeIf { it in TaskValidator.EPOCH_DAY_RANGE },
             dueMinuteOfDay = d.long("dueMinuteOfDay")?.toInt()?.takeIf { it in 0 until 1_440 },
             reminderOffsetMinutes = d.long("reminderOffsetMinutes")?.toInt()?.takeIf { it in 0..10_080 },
             recurrenceRule = (d["recurrence"] as? String)?.take(100),

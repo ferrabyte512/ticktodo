@@ -9,6 +9,8 @@ object TaskValidator {
     const val MAX_TITLE = 500
     const val MAX_NOTES = 10_000
     const val MAX_TAGS = 20
+    /** Due dates between 1970 and 2243; anything else is a corrupt or hostile document. */
+    val EPOCH_DAY_RANGE = 0L..100_000L
     const val MAX_TAG_LENGTH = 32
     const val MAX_LIST_NAME = 60
     const val MAX_SUBTASKS = 100
@@ -53,8 +55,6 @@ object TaskValidator {
     }
 
     fun validateNotes(notes: String): Error? = if (notes.length > MAX_NOTES) Error.NotesTooLong else null
-
-    fun validateTags(tags: List<String>): Error? = if (tags.size > MAX_TAGS) Error.TooManyTags else null
 
     fun validateReminder(offset: Int?): Error? =
         if (offset == null || offset in 0..10_080) null else Error.InvalidReminder

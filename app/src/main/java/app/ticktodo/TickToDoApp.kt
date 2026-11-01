@@ -73,8 +73,8 @@ class TickToDoApp : Application(), Configuration.Provider {
                     if (session.get().uid.value != null) {
                         syncScheduler.get().requestSync(delaySeconds = 0)
                         // A force-stop (or an aggressive battery manager) drops the app's alarms;
-                        // opening the app puts them back.
-                        reminders.get().rescheduleAll()
+                        // opening the app puts them back and shows any reminder missed meanwhile.
+                        reminders.get().rescheduleAll(catchUpMissed = true)
                     }
                 }
             }

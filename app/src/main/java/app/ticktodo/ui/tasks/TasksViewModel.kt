@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -135,7 +137,7 @@ class TasksViewModel @Inject constructor(
             selection = selected intersect visible,
             completedToday = completedToday,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TasksUiState())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TasksUiState())
 
     val status: StateFlow<StatusUi> = combine(connectivity.isOnline, syncStatus.status) { online, sync ->
         StatusUi(offline = !online, sync = sync)

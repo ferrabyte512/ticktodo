@@ -41,4 +41,5 @@ service-account*.json
 node_modules/
 
 # Release artifacts kept outside the repo
-release/
+/release/
+/app/release/

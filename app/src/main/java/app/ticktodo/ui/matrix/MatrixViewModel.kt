@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -54,7 +56,7 @@ class MatrixViewModel @Inject constructor(
             },
             lists = lists,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MatrixUiState())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MatrixUiState())
 
     fun complete(taskId: String) {
         viewModelScope.launch {

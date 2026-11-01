@@ -47,6 +47,35 @@ class RecurrenceTest {
         assertEquals(LocalDate.of(2027, 2, 28), RecurrenceCalculator.nextDueDate(jan31, Recurrence(Frequency.MONTHLY), jan31))
     }
 
+    @Test fun `monthly and yearly rules return to their anchor day after a short month`() {
+        val jan31 = LocalDate.of(2027, 1, 31)
+        val monthly = Recurrence(Frequency.MONTHLY).anchoredTo(jan31)
+        assertEquals(31, monthly.dayOfMonth)
+        val feb = RecurrenceCalculator.nextDueDate(jan31, monthly, jan31)
+        assertEquals(LocalDate.of(2027, 2, 28), feb)
+        assertEquals(LocalDate.of(2027, 3, 31), RecurrenceCalculator.nextDueDate(feb, monthly, feb))
+        assertEquals(LocalDate.of(2027, 4, 30), RecurrenceCalculator.nextDueDate(LocalDate.of(2027, 3, 31), monthly, LocalDate.of(2027, 3, 31)))
+
+        val leap = LocalDate.of(2028, 2, 29)
+        val yearly = Recurrence(Frequency.YEARLY).anchoredTo(leap)
+        val next = RecurrenceCalculator.nextDueDate(leap, yearly, leap)
+        assertEquals(LocalDate.of(2029, 2, 28), next)
+        assertEquals(LocalDate.of(2032, 2, 29), RecurrenceCalculator.nextDueDate(LocalDate.of(2031, 2, 28), yearly, LocalDate.of(2031, 2, 28)))
+
+        // Rules saved by older versions have no anchor and keep the old stepping behaviour.
+        assertEquals(LocalDate.of(2027, 3, 28), RecurrenceCalculator.nextDueDate(feb, Recurrence(Frequency.MONTHLY), feb))
+        // Weekly rules never get an anchor.
+        assertNull(Recurrence(Frequency.WEEKLY).anchoredTo(jan31).dayOfMonth)
+    }
+
+    @Test fun `anchor day round-trips through the encoded rule and is validated`() {
+        val rule = Recurrence(Frequency.MONTHLY, 2, dayOfMonth = 31)
+        assertEquals("FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=31", rule.encode())
+        assertEquals(rule, Recurrence.parse(rule.encode()))
+        assertNull(Recurrence.parse("FREQ=WEEKLY;INTERVAL=1;BYMONTHDAY=5"))
+        assertNull(Recurrence.parse("FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=32"))
+    }
+
     @Test fun `overdue repeating task jumps to today or later, not into the past`() {
         val old = LocalDate.of(2026, 9, 1)
         assertEquals(today, RecurrenceCalculator.nextDueDate(old, Recurrence(Frequency.DAILY), today))
