@@ -41,6 +41,7 @@ Details in [architecture.md](../architecture.md) and [sync-design.md](../sync-de
 | A22 | P3 | Reminders missed during a force-stop never shown | Fixed: caught up (6 h grace) when the app opens |
 | A23 | P3 | Task grouping/sorting ran on the main thread | Fixed: `Dispatchers.Default` |
 | A24 | P2 | Firestore reads: every run re-read the document at the cursor and every run on app open pulled even when the last pull was seconds old (free-tier risk at ~900 daily actives) | Fixed: exact (time, id) cursors, pull throttled to 10 min for routine runs, periodic 12 h, own pushes not re-applied; 26 reads/device/busy day measured in tests, down from 44 on the previous commit (same scenario) |
+| A25 | **P0** | Google sign-in impossible in release builds: the resource shrinker removed `default_web_client_id` (read by name with `getIdentifier`), so "Continue with Google" reported "no Firebase configuration". Found by the sign-out/sign-in device test; earlier sessions never saw it because they stayed signed in | Fixed: `res/raw/keep.xml` keeps the resource; verified in the APK's resource table and by a successful sign-in on the phone |
 | — | P3 | Not changed (documented in known-limitations): widgets refresh "today" hourly; no field-level merge; baseline profile hand-written | Open |
 
 ## 3–10. Improvements by area
@@ -65,7 +66,8 @@ Details in [architecture.md](../architecture.md) and [sync-design.md](../sync-de
 | Layout tests (320 dp phone, 960×600 tablet landscape, 2.0× font) | PASS |
 | Release build `:app:bundleRelease :app:assembleRelease` | PASS — `clean bundleRelease assembleRelease` succeeded; AAB 10.98 MB, APK 5.15 MB, R8 mapping produced |
 | AAB/APK signed with the upload key | PASS — `keytool -printcert` on the AAB shows `CN=Tick ToDo upload, O=Ferrabytes`, SHA-256 `D6:BF:5C:22:…:B5:A1:C0` |
-| Release APK installed over the previous build on OPPO CPH2219 (Android 13), data kept | PASS — same release code signed with the debug key installed over the previous build on OPPO CPH2219 (Android 13): existing tasks, lists and settings present; Today, Upcoming, Matrix, Browse and Settings open; sync "Last synced 0 minutes ago"; no crash in logcat. The upload-key-signed APK itself was not installed, because that would need an uninstall. |
+| Release build on OPPO CPH2219 (Android 13) — full checklist | PASS — existing tasks kept; first sync and "Last synced" shown; create/edit/delete sync with 0 pending; airplane mode shows "Offline. 1 change will sync when you reconnect." and syncs on reconnect; "Sync now" works; a reminder set for 21:45:00 fired at 21:45:00 on the alarm-tone channel; sign out → "Continue with Google" → account chooser → sign in restored all tasks from the cloud; no crashes in logcat. Two devices: NOT VERIFIED (one phone; covered by fake-remote tests). Widgets: NOT VERIFIED (excluded from device testing by the owner). |
+| Firestore compound cursor | PASS on the emulator with equal commit times (cursor.test.mjs, 26/26 with the rules suite); PASS on production for the normal path (first pull after v5, unthrottled "Sync now", sign-in resync all succeeded against the live database) |
 
 ## 14. Remaining known issues
 
