@@ -9,7 +9,7 @@ reset); losing `keystore.properties` only costs a reset.
 
 | File | Purpose |
 |---|---|
-| `keys/ticktodo-upload.jks` | Upload keystore. `keys/` and `*.jks` are git-ignored. |
+| `<secrets folder>/ticktodo-upload.jks` | Upload keystore, kept **outside** the repository (on this machine: `E:\E\ticktodo-secrets`, which also holds backups of `keystore.properties`, `google-services.json` and the signed AAB). `*.jks` is git-ignored as a second line of defence. |
 | `keystore.properties` | Path, store password, key alias, key password. Git-ignored; template in `keystore.properties.example`. |
 
 Keep an encrypted backup of both outside the repository (password manager +
@@ -18,8 +18,7 @@ offline copy). Do not paste passwords into chat, issues or CI logs.
 ## Creating the upload key (once)
 
 ```bash
-mkdir -p keys
-keytool -genkeypair -v -keystore keys/ticktodo-upload.jks -alias upload \
+keytool -genkeypair -v -keystore /path/outside/repo/ticktodo-upload.jks -alias upload \
   -keyalg RSA -keysize 4096 -validity 10000 \
   -dname "CN=Tick ToDo upload, O=Ferrabytes"
 ```
@@ -33,7 +32,7 @@ bundle), and add its SHA-1/SHA-256 to the Firebase Android app so sign-in
 works for locally built release APKs:
 
 ```bash
-keytool -list -v -keystore keys/ticktodo-upload.jks -alias upload | grep -E "SHA1|SHA256"
+keytool -list -v -keystore /path/outside/repo/ticktodo-upload.jks -alias upload | grep -E "SHA1|SHA256"
 ```
 
 ## How Gradle finds it

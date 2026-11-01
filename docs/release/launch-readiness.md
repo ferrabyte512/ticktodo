@@ -74,9 +74,9 @@ See [known-limitations.md](../known-limitations.md).
 
 1. **Privacy policy:** publish `docs/legal/privacy-policy.md` (fill the placeholders: legal entity, contact e-mail, Firestore region, export procedure) at a public URL and set in `gradle.properties`:
    `ticktodo.privacyPolicyUrl`, `ticktodo.termsUrl` (or leave terms empty), `ticktodo.supportEmail`. The app hides the links while they are empty.
-2. **Deploy the tightened Firestore rules** before shipping this build: `cd firebase/rules-tests && npm test && npm run deploy` (needs JDK 21 and Firebase CLI login).
-3. **Firebase console:** add the upload key's SHA-1/SHA-256 (printed by `keytool -list -v -keystore keys/ticktodo-upload.jks -alias upload`) and, after the first Play upload, the Play App Signing fingerprints; Blaze plan + budget alert; App Check enforcement stays off until the Play build shows verified traffic.
-4. **Back up** `keys/ticktodo-upload.jks` and `keystore.properties` outside the repository (both git-ignored).
+2. ~~Deploy the tightened Firestore rules~~ — deployed to `tick-todo-2916c` on 2026-11-01 after 23/23 emulator tests.
+3. **Firebase console:** add the upload key's SHA-1/SHA-256 (SHA-1 `FF:5C:EA:FC:D7:93:3F:B7:CD:BB:13:FC:5B:E3:90:97:69:3F:CB:9D`, SHA-256 `D6:BF:5C:22:74:A7:6C:75:B6:4D:AF:AF:1A:96:C1:06:57:1A:04:61:9D:1A:BA:47:E6:23:71:35:27:B5:A1:C0`) and, after the first Play upload, the Play App Signing fingerprints; Blaze plan + budget alert; App Check enforcement stays off until the Play build shows verified traffic.
+4. **Back up** the secrets folder (`E:\E\ticktodo-secrets`: upload keystore, `keystore.properties`, `google-services.json`, the signed AAB) to a password manager or an encrypted offline copy.
 5. **Play Console:** Data safety form from `data-safety.md`; exact-alarm and full-screen-intent declarations; store listing from `store-listing.md`; internal testing track first.
 
 ## 16. Build commands
