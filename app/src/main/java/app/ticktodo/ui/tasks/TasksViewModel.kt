@@ -11,12 +11,14 @@ import app.ticktodo.domain.model.Priority
 import app.ticktodo.domain.model.Task
 import app.ticktodo.focus.FocusManager
 import app.ticktodo.domain.model.TaskDraft
+import app.ticktodo.domain.model.TaskItem
 import app.ticktodo.domain.model.TaskList
 import app.ticktodo.domain.model.TaskScope
 import app.ticktodo.domain.model.TaskSort
 import app.ticktodo.sync.SyncScheduler
 import app.ticktodo.sync.SyncStatus
 import app.ticktodo.sync.SyncStatusRepository
+import app.ticktodo.ui.common.Celebrations
 import app.ticktodo.ui.common.Connectivity
 import app.ticktodo.ui.common.DayTicker
 import app.ticktodo.ui.common.UiMessage
@@ -28,11 +30,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 import javax.inject.Inject
 
 data class TasksUiState(
@@ -42,6 +46,8 @@ data class TasksUiState(
     val lists: List<TaskList> = emptyList(),
     val sort: TaskSort = TaskSort.DUE_DATE,
     val selection: Set<String> = emptySet(),
+    /** Top-level tasks completed today; drives the Today ring. */
+    val completedToday: Int = 0,
 ) {
     val isEmpty: Boolean get() = !loading && sections.isEmpty()
     val selectionMode: Boolean get() = selection.isNotEmpty()
@@ -55,7 +61,31 @@ data class QuickAddInput(
     val dueDate: LocalDate?,
     val priority: Priority,
     val listId: String?,
+    val dueTime: LocalTime? = null,
 )
+
+/** Creates a task from the quick-add sheet; shared by every screen that hosts the sheet. */
+fun ViewModel.quickAddTask(repository: TaskRepository, messenger: UiMessenger, input: QuickAddInput, onCreated: (String) -> Unit) {
+    val parsed = QuickAddParser.parse(input.text)
+    if (parsed.title.isBlank()) return
+    viewModelScope.launch {
+        try {
+            val id = repository.create(
+                TaskDraft(
+                    title = parsed.title,
+                    tags = parsed.tags,
+                    dueDate = input.dueDate,
+                    dueTime = input.dueTime?.takeIf { input.dueDate != null },
+                    priority = input.priority,
+                    listId = input.listId,
+                ),
+            )
+            onCreated(id)
+        } catch (e: InvalidInputException) {
+            messenger.show(UiMessage(R.string.error_invalid_task))
+        }
+    }
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -69,6 +99,7 @@ class TasksViewModel @Inject constructor(
     connectivity: Connectivity,
     syncStatus: SyncStatusRepository,
     private val focus: FocusManager,
+    private val celebrations: Celebrations,
 ) : ViewModel() {
 
     /** Id of the task currently in a focus session, if any. */
@@ -92,7 +123,8 @@ class TasksViewModel @Inject constructor(
         settings.settings,
         repository.observeLists(),
         selection,
-    ) { (today, items), prefs, lists, selected ->
+        if (scope == TaskScope.Today) dayTicker.today.flatMapLatest { repository.observeCompletedOn(it) } else flowOf(0),
+    ) { (today, items), prefs, lists, selected, completedToday ->
         val visible = items.map { it.task.id }.toSet()
         TasksUiState(
             loading = false,
@@ -101,6 +133,7 @@ class TasksViewModel @Inject constructor(
             lists = lists,
             sort = prefs.sort,
             selection = selected intersect visible,
+            completedToday = completedToday,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TasksUiState())
 
@@ -118,24 +151,7 @@ class TasksViewModel @Inject constructor(
     }
 
     fun quickAdd(input: QuickAddInput, onCreated: (String) -> Unit = {}) {
-        val parsed = QuickAddParser.parse(input.text)
-        if (parsed.title.isBlank()) return
-        viewModelScope.launch {
-            try {
-                val id = repository.create(
-                    TaskDraft(
-                        title = parsed.title,
-                        tags = parsed.tags,
-                        dueDate = input.dueDate,
-                        priority = input.priority,
-                        listId = input.listId,
-                    ),
-                )
-                onCreated(id)
-            } catch (e: InvalidInputException) {
-                messenger.show(UiMessage(R.string.error_invalid_task))
-            }
-        }
+        quickAddTask(repository, messenger, input, onCreated)
     }
 
     fun toggleComplete(taskId: String, currentlyCompleted: Boolean) {
@@ -144,11 +160,12 @@ class TasksViewModel @Inject constructor(
             if (change.completed) {
                 messenger.show(
                     UiMessage(
-                        text = if (change.nextOccurrenceId != null) R.string.msg_completed_repeating else R.string.msg_completed,
+                        text = if (change.nextOccurrenceId != null) R.string.msg_completed_repeating else celebrations.taskDoneMessage(),
                         actionLabel = R.string.action_undo,
                         onAction = { repository.undoCompletion(change) },
                     ),
                 )
+                celebrations.afterCompletion(taskId)
             }
         }
     }
@@ -180,6 +197,7 @@ class TasksViewModel @Inject constructor(
             val changes = repository.completeMany(ids)
             selection.value = emptySet()
             if (changes.isNotEmpty()) {
+                changes.forEach { celebrations.afterCompletion(it.taskId) }
                 messenger.show(
                     UiMessage(
                         text = R.string.msg_completed_many,
@@ -208,6 +226,12 @@ class TasksViewModel @Inject constructor(
             repository.moveToList(ids, listId)
             selection.value = emptySet()
         }
+    }
+
+    /** Saves "My order" after [movedId] was dropped; [sectionItems] are in their new on-screen order. */
+    fun reorder(sectionItems: List<TaskItem>, movedId: String) {
+        val updates = TaskGrouping.manualOrderUpdates(sectionItems, movedId)
+        viewModelScope.launch { repository.setSortOrders(updates) }
     }
 
     fun setSort(sort: TaskSort) {

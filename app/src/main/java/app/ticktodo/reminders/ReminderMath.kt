@@ -16,6 +16,9 @@ object ReminderMath {
     /** A reminder missed while the device was off is still shown if it is at most this old. */
     const val MISSED_GRACE_MS = 6L * 60 * 60 * 1000
 
+    /** Tasks with a date but no time remind relative to 09:00 that day. */
+    const val ALL_DAY_REMINDER_MINUTE = 9 * 60
+
     sealed interface Plan {
         data object None : Plan
         data class At(val triggerAt: Long, val reminderTime: Long) : Plan

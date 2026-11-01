@@ -15,6 +15,7 @@ import app.ticktodo.domain.model.Recurrence
 import app.ticktodo.domain.model.Task
 import app.ticktodo.domain.model.TaskDraft
 import app.ticktodo.domain.model.TaskList
+import app.ticktodo.ui.common.Celebrations
 import app.ticktodo.ui.common.DayTicker
 import app.ticktodo.ui.common.UiMessage
 import app.ticktodo.ui.common.UiMessenger
@@ -55,8 +56,11 @@ data class EditorUiState(
     val titleError: Boolean = false,
     val focusedMs: Long = 0,
     val defaultFocusPlan: FocusPlan = FocusPlan.DEFAULT,
+    /** The form as loaded, to tell whether anything was edited. */
+    val initialForm: EditorForm = EditorForm(),
 ) {
     val isSubtask: Boolean get() = original?.parentId != null
+    val hasChanges: Boolean get() = !loading && original != null && form != initialForm
 }
 
 @HiltViewModel
@@ -67,6 +71,7 @@ class TaskEditorViewModel @Inject constructor(
     private val settings: SettingsRepository,
     focus: FocusManager,
     dayTicker: DayTicker,
+    private val celebrations: Celebrations,
 ) : ViewModel() {
 
     private val taskId: String = savedStateHandle.get<String>("taskId").orEmpty()
@@ -96,22 +101,19 @@ class TaskEditorViewModel @Inject constructor(
             local.value = if (task == null) {
                 EditorUiState(loading = false, notFound = true)
             } else {
-                EditorUiState(
-                    loading = false,
-                    original = task,
-                    form = EditorForm(
-                        title = task.title,
-                        notes = task.notes,
-                        dueDate = task.dueDate,
-                        dueTime = task.dueTime,
-                        reminderOffset = task.reminderOffsetMinutes,
-                        recurrence = task.recurrence,
-                        priority = task.priority,
-                        listId = task.listId,
-                        tags = task.tags,
-                        focusPlan = task.focusPlan,
-                    ),
+                val form = EditorForm(
+                    title = task.title,
+                    notes = task.notes,
+                    dueDate = task.dueDate,
+                    dueTime = task.dueTime,
+                    reminderOffset = task.reminderOffsetMinutes,
+                    recurrence = task.recurrence,
+                    priority = task.priority,
+                    listId = task.listId,
+                    tags = task.tags,
+                    focusPlan = task.focusPlan,
                 )
+                EditorUiState(loading = false, original = task, form = form, initialForm = form)
             }
         }
     }
@@ -174,7 +176,13 @@ class TaskEditorViewModel @Inject constructor(
 
     fun toggleCompleted() {
         val task = state.value.original ?: return
-        viewModelScope.launch { repository.setCompleted(task.id, !task.isCompleted) }
+        viewModelScope.launch {
+            val change = repository.setCompleted(task.id, !task.isCompleted) ?: return@launch
+            if (change.completed) {
+                messenger.show(UiMessage(celebrations.taskDoneMessage(), actionLabel = R.string.action_undo, onAction = { repository.undoCompletion(change) }))
+                celebrations.afterCompletion(task.id)
+            }
+        }
     }
 
     fun delete(onDeleted: () -> Unit) {

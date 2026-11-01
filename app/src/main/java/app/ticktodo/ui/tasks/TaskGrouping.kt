@@ -1,5 +1,6 @@
 package app.ticktodo.ui.tasks
 
+import app.ticktodo.domain.model.Task
 import app.ticktodo.domain.model.TaskItem
 import app.ticktodo.domain.model.TaskScope
 import app.ticktodo.domain.model.TaskSort
@@ -16,7 +17,39 @@ data class TaskSection(val key: String, val header: SectionHeader?, val items: L
 /** Pure sorting and grouping for task lists, unit tested in TaskGroupingTest. */
 object TaskGrouping {
 
+    /** Gap left between neighbours when a task is moved to either end of "My order". */
+    private const val ORDER_STEP = 60_000.0
+
+    /**
+     * Position in "My order", smallest first. Tasks never moved sort by creation
+     * time, newest first, which matches how new tasks appear before any drag.
+     */
+    fun manualKey(task: Task): Double = task.sortOrder ?: -task.createdAt.toDouble()
+
+    /**
+     * New "My order" positions after [movedId] was dropped at its place in
+     * [items] (the section in its new on-screen order). Usually only the moved
+     * task changes; if its neighbours are too close to fit between, the whole
+     * section is renumbered.
+     */
+    fun manualOrderUpdates(items: List<TaskItem>, movedId: String): Map<String, Double> {
+        val index = items.indexOfFirst { it.task.id == movedId }
+        if (index < 0 || items.size < 2) return emptyMap()
+        val above = items.getOrNull(index - 1)?.let { manualKey(it.task) }
+        val below = items.getOrNull(index + 1)?.let { manualKey(it.task) }
+        val value = when {
+            above != null && below != null -> if (below - above > 1e-3) (above + below) / 2 else null
+            above != null -> above + ORDER_STEP
+            below != null -> below - ORDER_STEP
+            else -> null
+        }
+        if (value != null) return mapOf(movedId to value)
+        val base = items.minOf { manualKey(it.task) }
+        return items.mapIndexed { i, item -> item.task.id to base + i * ORDER_STEP }.toMap()
+    }
+
     fun sort(items: List<TaskItem>, sort: TaskSort): List<TaskItem> = when (sort) {
+        TaskSort.MANUAL -> items.sortedBy { manualKey(it.task) }
         TaskSort.DUE_DATE -> items.sortedWith(
             compareBy<TaskItem>(
                 { it.task.dueDate == null },

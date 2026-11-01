@@ -189,9 +189,17 @@ class SyncEngineTest {
         assertEquals(pushes, remote.pushCalls)
     }
 
+    @Test fun `my order position syncs with the task`() = runBlocking<Unit> {
+        val a = device(); val b = device()
+        val id = a.repo.create(TaskDraft("Pinned"))
+        a.repo.setSortOrders(mapOf(id to -42.5))
+        a.sync(); b.sync()
+        assertEquals(-42.5, b.repo.observeTask(id).first()!!.sortOrder)
+    }
+
     @Test fun `focus plan syncs with the task`() = runBlocking<Unit> {
         val a = device(); val b = device()
-        val plan = app.ticktodo.domain.focus.FocusPlan(50, 10, 20, 2, 4)
+        val plan = app.ticktodo.domain.focus.FocusPlan(50, 10)
         val id = a.repo.create(TaskDraft("Deep work", focusPlan = plan))
         a.sync(); b.sync()
         assertEquals(plan, b.repo.observeTask(id).first()!!.focusPlan)

@@ -1,6 +1,14 @@
 package app.ticktodo.ui.browse
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
+import app.ticktodo.data.local.ScopeCounts
+import app.ticktodo.ui.common.DayTicker
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
@@ -82,16 +89,31 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class BrowseUiState(val lists: List<TaskList> = emptyList(), val tags: List<String> = emptyList())
+data class BrowseUiState(
+    val lists: List<TaskList> = emptyList(),
+    val tags: List<String> = emptyList(),
+    /** Inbox is offered only when it differs from All tasks. */
+    val showInbox: Boolean = false,
+    val counts: ScopeCounts = ScopeCounts(0, 0, 0, 0),
+    val listCounts: Map<String, Int> = emptyMap(),
+)
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
     private val repository: TaskRepository,
     private val messenger: UiMessenger,
     val ads: AdsGateway,
+    dayTicker: DayTicker,
 ) : ViewModel() {
-    val state: StateFlow<BrowseUiState> = combine(repository.observeLists(), repository.observeTags()) { lists, tags ->
-        BrowseUiState(lists, tags)
+    val state: StateFlow<BrowseUiState> = combine(
+        repository.observeLists(),
+        repository.observeTags(),
+        repository.observeHasListedTasks(),
+        dayTicker.today.flatMapLatest { repository.observeScopeCounts(it) },
+        repository.observeListCounts(),
+    ) { lists, tags, hasListed, counts, listCounts ->
+        BrowseUiState(lists, tags, showInbox = hasListed, counts = counts, listCounts = listCounts)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
 
     fun saveList(id: String?, name: String, color: Int) {
@@ -137,28 +159,21 @@ fun BrowseScreen(
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
                 GlassSurface(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-                Column {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { onOpenScope(TaskScope.Inbox) },
-                    leadingContent = { Icon(Icons.Outlined.Inbox, null) },
-                    headlineContent = { Text(stringResource(R.string.scope_inbox)) },
-                )
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { onOpenScope(TaskScope.All) },
-                    leadingContent = { Icon(Icons.Outlined.ViewList, null) },
-                    headlineContent = { Text(stringResource(R.string.scope_all)) },
-                )
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { onOpenScope(TaskScope.Completed) },
-                    leadingContent = { Icon(Icons.Outlined.DoneAll, null) },
-                    headlineContent = { Text(stringResource(R.string.scope_completed)) },
-                )
+                    Column {
+                        // When no open task is in a list, Inbox would just repeat All tasks.
+                        if (state.showInbox) {
+                            ScopeRow(Icons.Outlined.Inbox, stringResource(R.string.scope_inbox), state.counts.inbox) { onOpenScope(TaskScope.Inbox) }
+                        }
+                        ScopeRow(Icons.Outlined.ViewList, stringResource(R.string.scope_all), state.counts.total) { onOpenScope(TaskScope.All) }
+                    }
                 }
+                Row(Modifier.fillMaxWidth().padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SectionTitle(stringResource(R.string.browse_my_lists))
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = { creating = true }, modifier = Modifier.padding(top = 8.dp)) {
+                        Icon(Icons.Outlined.Add, stringResource(R.string.action_new_list), tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
-                SectionTitle(stringResource(R.string.browse_lists))
             }
             items(state.lists, key = { it.id }) { list ->
                 var menu by remember { mutableStateOf(false) }
@@ -169,6 +184,8 @@ fun BrowseScreen(
                     leadingContent = { Box(Modifier.size(14.dp).clip(CircleShape).background(extra.list(list.colorIndex))) },
                     headlineContent = { Text(list.name) },
                     trailingContent = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        CountText(state.listCounts[list.id] ?: 0)
                         Box {
                             IconButton(onClick = { menu = true }) {
                                 Icon(Icons.Outlined.MoreVert, stringResource(R.string.a11y_list_options, list.name))
@@ -178,16 +195,20 @@ fun BrowseScreen(
                                 DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { menu = false; deleting = list })
                             }
                         }
+                        }
                     },
                 )
                 }
             }
             item {
-                ListItem(
-                    modifier = Modifier.clickable { creating = true },
-                    leadingContent = { Icon(Icons.Outlined.Add, null) },
-                    headlineContent = { Text(stringResource(R.string.action_new_list), color = MaterialTheme.colorScheme.primary) },
-                )
+                if (state.lists.isEmpty()) {
+                    Text(
+                        stringResource(R.string.browse_no_lists),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
                 if (state.tags.isNotEmpty()) SectionTitle(stringResource(R.string.field_tags))
             }
             if (state.tags.isNotEmpty()) {
@@ -224,6 +245,22 @@ fun BrowseScreen(
             onDismiss = { deleting = null },
         )
     }
+}
+
+@Composable
+private fun ScopeRow(icon: ImageVector, title: String, count: Int, onClick: () -> Unit) {
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onClick),
+        leadingContent = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary) },
+        headlineContent = { Text(title) },
+        trailingContent = { CountText(count) },
+    )
+}
+
+@Composable
+private fun CountText(count: Int) {
+    Text(count.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @OptIn(ExperimentalLayoutApi::class)

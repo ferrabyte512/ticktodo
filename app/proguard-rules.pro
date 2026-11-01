@@ -12,3 +12,11 @@
 # Keep line numbers for readable crash stack traces; hide original file names.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Glance identifies widgets by their class (GlanceAppWidgetManager.getGlanceIds).
+# Without this, R8 may merge look-alike widget classes into one, so updating one
+# widget type repaints another (seen on device: Quick add showed the Focus widget).
+-keep,allowobfuscation class * extends androidx.glance.appwidget.GlanceAppWidget
+-keep,allowobfuscation class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver
+# Glance creates ActionCallbacks by reflection, so their no-argument constructor must survive.
+-keep class * implements androidx.glance.appwidget.action.ActionCallback { <init>(); }

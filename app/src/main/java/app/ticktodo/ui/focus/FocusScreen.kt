@@ -1,7 +1,6 @@
 package app.ticktodo.ui.focus
 
 import app.ticktodo.ui.common.GlassSurface
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ticktodo.R
+import app.ticktodo.domain.focus.FocusEngine
 import app.ticktodo.domain.focus.FocusPhase
 import app.ticktodo.domain.focus.FocusState
 import app.ticktodo.focus.FocusNotifications
@@ -157,7 +158,10 @@ private fun RunningSession(active: FocusState, viewModel: FocusViewModel, onDone
                 viewModel.timeUp()
                 break
             }
-            delay(250)
+            // Wake exactly when the displayed second changes: one frame per second
+            // instead of four, which matters on slower GPUs and for battery.
+            val untilNextSecond = ((active.remainingMs(now) - 1) % 1000) + 1
+            delay(untilNextSecond.coerceIn(20, 1000))
         }
         now = System.currentTimeMillis()
     }
@@ -171,13 +175,12 @@ private fun RunningSession(active: FocusState, viewModel: FocusViewModel, onDone
 
     val remaining = active.remainingMs(now)
     val total = active.phaseLengthMs().coerceAtLeast(1)
-    val progress by animateFloatAsState((1f - remaining.toFloat() / total).coerceIn(0f, 1f), label = "progress")
+    // Updated once a second; a separate animation would redraw the ring every frame.
+    val progress = (1f - remaining.toFloat() / total).coerceIn(0f, 1f)
     val ringColor = if (active.phase == FocusPhase.FOCUS) extra.focus else extra.breakTime
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
     val phaseText = FocusNotifications.phaseLabel(context, active.phase)
-    val plan = active.decodedPlan
-    val roundText = plan.totalRounds?.let { stringResource(R.string.focus_round_of, active.round, it) }
-        ?: stringResource(R.string.focus_round, active.round)
+    val roundText = stringResource(R.string.focus_round, active.round)
     val timeText = FocusNotifications.formatMs(remaining)
 
     Text(active.taskTitle, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
@@ -225,7 +228,15 @@ private fun RunningSession(active: FocusState, viewModel: FocusViewModel, onDone
             Icon(Icons.Rounded.SkipNext, stringResource(R.string.focus_skip), Modifier.size(32.dp))
         }
     }
-    TextButton(onClick = { viewModel.completeTask(onDone) }) { Text(stringResource(R.string.focus_mark_done)) }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        val extendLabel = stringResource(R.string.a11y_focus_extend)
+        OutlinedButton(
+            onClick = { viewModel.extend() },
+            enabled = active.extraMs < FocusEngine.MAX_EXTRA_MS,
+            modifier = Modifier.semantics { contentDescription = extendLabel },
+        ) { Text(stringResource(R.string.focus_extend)) }
+        TextButton(onClick = { viewModel.completeTask(onDone) }) { Text(stringResource(R.string.focus_mark_done)) }
+    }
     Spacer(Modifier.height(4.dp))
 }
 

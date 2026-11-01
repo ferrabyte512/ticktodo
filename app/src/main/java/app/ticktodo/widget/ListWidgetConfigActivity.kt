@@ -23,6 +23,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
@@ -61,8 +62,16 @@ class ListWidgetConfigActivity : ComponentActivity() {
             return
         }
 
+        val settingsFlow = widgetEntry(this).settings().settings
         setContent {
-            TickTheme {
+            val prefs by settingsFlow.collectAsState(initial = null)
+            val p = prefs
+            // Follow the user's colours and light/dark choice (without a wallpaper).
+            TickTheme(
+                themeMode = p?.themeMode ?: app.ticktodo.data.settings.ThemeMode.SYSTEM,
+                appearance = (p?.appearance ?: app.ticktodo.data.settings.Appearance()).copy(wallpaper = app.ticktodo.data.settings.Wallpaper.NONE),
+                dynamicColor = p?.dynamicColor ?: false,
+            ) {
                 val fixed = listOf(
                     Option(TaskScope.Today, stringResource(R.string.scope_today), Icons.Outlined.Today),
                     Option(TaskScope.Upcoming, stringResource(R.string.scope_upcoming), Icons.Outlined.CalendarMonth),

@@ -101,6 +101,9 @@ class FocusManager @Inject constructor(
 
     suspend fun resume() = mutate { FocusEngine.resume(it, clock.now()) }
 
+    /** Adds five minutes to the current phase. */
+    suspend fun extend() = mutate { FocusEngine.extend(it, FocusEngine.EXTEND_MS) }
+
     /** Ends the current phase early and moves on. */
     suspend fun skip() = mutex.withLock {
         val current = _state.value ?: return@withLock

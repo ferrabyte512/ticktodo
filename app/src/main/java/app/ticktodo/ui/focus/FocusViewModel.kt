@@ -11,6 +11,7 @@ import app.ticktodo.domain.focus.FocusPlan
 import app.ticktodo.domain.focus.FocusState
 import app.ticktodo.domain.model.Task
 import app.ticktodo.focus.FocusManager
+import app.ticktodo.ui.common.Celebrations
 import app.ticktodo.ui.common.DayTicker
 import app.ticktodo.ui.common.UiMessage
 import app.ticktodo.ui.common.UiMessenger
@@ -47,6 +48,7 @@ class FocusViewModel @Inject constructor(
     private val messenger: UiMessenger,
     private val clock: Clock,
     dayTicker: DayTicker,
+    private val celebrations: Celebrations,
 ) : ViewModel() {
 
     private val requestedTaskId: String? = savedStateHandle.get<String>("taskId")?.takeIf { it.isNotBlank() }
@@ -101,6 +103,7 @@ class FocusViewModel @Inject constructor(
     fun pause() = viewModelScope.launch { manager.pause() }
     fun resume() = viewModelScope.launch { manager.resume() }
     fun skip() = viewModelScope.launch { manager.skip() }
+    fun extend() = viewModelScope.launch { manager.extend() }
     fun stop() = viewModelScope.launch { manager.stop() }
     fun timeUp() = viewModelScope.launch { manager.onPhaseTimeUp() }
 
@@ -111,7 +114,8 @@ class FocusViewModel @Inject constructor(
             manager.stop()
             val change = repository.setCompleted(active.taskId, true)
             if (change != null) {
-                messenger.show(UiMessage(R.string.msg_completed, actionLabel = R.string.action_undo, onAction = { repository.undoCompletion(change) }))
+                messenger.show(UiMessage(celebrations.taskDoneMessage(), actionLabel = R.string.action_undo, onAction = { repository.undoCompletion(change) }))
+                celebrations.afterCompletion(active.taskId)
             }
             onDone()
         }

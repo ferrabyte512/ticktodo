@@ -27,7 +27,6 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_ok">OK</string>
     <string name="action_save">Save</string>
-    <string name="action_save_and_close">Save and close</string>
     <string name="action_delete">Delete</string>
     <string name="action_edit">Edit</string>
     <string name="action_complete">Complete</string>
@@ -142,7 +141,6 @@
     <!-- Status and messages -->
     <string name="status_offline">Offline. Changes are saved on this device.</string>
     <string name="status_offline_pending">Offline. %1$d changes will sync when you reconnect.</string>
-    <string name="msg_completed">Completed</string>
     <string name="msg_completed_repeating">Completed. The next one is scheduled.</string>
     <string name="msg_completed_many">Completed %1$d tasks</string>
     <string name="msg_deleted">Deleted</string>
@@ -196,7 +194,6 @@
     <string name="settings_theme">Theme</string>
     <string name="settings_dynamic_color">Use wallpaper colours</string>
     <string name="settings_dynamic_color_body">Match the app colours to your wallpaper</string>
-    <string name="settings_default_reminder_time">Reminder time for all-day tasks</string>
     <string name="settings_about">About</string>
     <string name="settings_support">Contact support</string>
     <string name="settings_licenses">Open-source licences</string>
@@ -217,9 +214,6 @@
     <string name="health_exact">Alarms &amp; reminders</string>
     <string name="health_exact_off">Off. Reminders may arrive late.</string>
     <string name="health_allowed">Allowed</string>
-    <string name="health_battery">Battery usage</string>
-    <string name="health_battery_ok">Unrestricted</string>
-    <string name="health_battery_restricted">Optimised. Some phones delay reminders in this mode; choose \"Unrestricted\" for Tick ToDo if reminders are late.</string>
     <string name="licenses_intro">Tick ToDo is built with these open-source components. Thank you to their authors.</string>
     <string name="licenses_apache_note">The full text of the Apache License 2.0 is available at apache.org/licenses/LICENSE-2.0.</string>
 
@@ -256,10 +250,8 @@
     <string name="focus_paused">Paused</string>
     <string name="focus_paused_left">Paused · %1$s left</string>
     <string name="focus_phase_focus">Focus</string>
-    <string name="focus_phase_short_break">Short break</string>
-    <string name="focus_phase_long_break">Long break</string>
+    <string name="focus_phase_short_break">Break</string>
     <string name="focus_round">Round %1$d</string>
-    <string name="focus_round_of">Round %1$d of %2$d</string>
     <string name="focus_in_progress">In focus</string>
     <string name="focus_minutes_short">%1$d min focus</string>
     <string name="focus_mark_done">Mark task as done</string>
@@ -274,15 +266,10 @@
     <string name="focus_use_for_task">Use a focus timer for this task</string>
     <string name="focus_use_for_task_body">Adds a start button to the task card and remembers your timings.</string>
     <string name="focus_length">Focus</string>
-    <string name="focus_short_break">Short break</string>
-    <string name="focus_long_break">Long break</string>
-    <string name="focus_long_break_every">Long break after</string>
-    <string name="focus_total_rounds">Session length</string>
-    <string name="focus_until_stopped">Until stopped</string>
+    <string name="focus_break">Break</string>
     <string name="focus_auto_breaks">Start breaks automatically</string>
     <string name="focus_auto_focus">Start next round automatically</string>
-    <string name="focus_preset">%1$d / %2$d min</string>
-    <string name="focus_plan_summary">%1$d min focus · %2$d min break · %3$d min long break</string>
+    <string name="focus_plan_summary">%1$d min focus · %2$d min break</string>
     <string name="focus_public_title">Focus session running</string>
     <string name="focus_alert_focus_done">Focus round complete</string>
     <string name="focus_alert_break_done">Break is over</string>
@@ -297,7 +284,6 @@
     <string name="duration_m">%1$d min</string>
     <string name="duration_h_m">%1$d h %2$d min</string>
     <string name="unit_min">min</string>
-    <string name="unit_rounds">rounds</string>
     <string name="a11y_decrease">Decrease %1$s</string>
     <string name="a11y_increase">Increase %1$s</string>
     <string name="settings_default_focus_plan">Default focus plan</string>
@@ -338,6 +324,11 @@
     <string name="widget_next_7_days">Next 7 days</string>
     <string name="widget_focus_idle">Open a task and start a focus session.</string>
     <string name="widget_focus_until">Until %1$s</string>
+    <string name="widget_preview_date">22 Oct</string>
+    <string name="widget_preview_due_9">Today · 9:00</string>
+    <string name="widget_preview_task_3">Call the bank</string>
+    <string name="widget_preview_friday">Friday</string>
+    <string name="widget_preview_until">Until 10:25</string>
     <!-- Appearance -->
     <string name="appearance_title">Appearance</string>
     <string name="appearance_summary">Themes, accent colours and wallpapers</string>
@@ -358,6 +349,8 @@
     <string name="appearance_reset">Reset to default look</string>
     <string name="appearance_sample_task_1">Plan the week</string>
     <string name="appearance_sample_task_2">Morning walk</string>
+    <string name="theme_emerald">Emerald</string>
+    <string name="theme_lagoon">Lagoon</string>
     <string name="theme_apricot">Apricot</string>
     <string name="theme_terracotta">Terracotta</string>
     <string name="theme_honey">Honey</string>
@@ -386,4 +379,66 @@
     <string name="picker_hex_error">Enter 3, 6 or 8 hex digits</string>
     <string name="picker_current">Current</string>
     <string name="picker_new">New</string>
+
+    <!-- Manual order, focus extend, grouped reminders (v1.2) -->
+    <string name="sort_manual">My order</string>
+    <string name="a11y_move_up">Move up</string>
+    <string name="a11y_move_down">Move down</string>
+    <string name="a11y_drag_to_reorder">Drag to reorder</string>
+    <string name="focus_extend">+5 min</string>
+    <string name="a11y_focus_extend">Add 5 minutes to the timer</string>
+    <plurals name="notification_group_title">
+        <item quantity="one">%1$d task due</item>
+        <item quantity="other">%1$d tasks due</item>
+    </plurals>
+    <string name="notification_group_more">+%1$d more</string>
+
+    <!-- Priority matrix -->
+    <string name="nav_matrix">Matrix</string>
+    <string name="matrix_high">High</string>
+    <string name="matrix_high_meaning">Urgent and important</string>
+    <string name="matrix_medium">Medium</string>
+    <string name="matrix_medium_meaning">Urgent, not important</string>
+    <string name="matrix_low">Low</string>
+    <string name="matrix_low_meaning">Important, not urgent</string>
+    <string name="matrix_optional">Optional</string>
+    <string name="matrix_optional_meaning">Not urgent, not important</string>
+    <string name="matrix_add_to">Add a task to %1$s</string>
+    <string name="matrix_empty">Nothing here</string>
+
+    <!-- Completion messages -->
+    <string name="msg_done_1">Done. Nice work!</string>
+    <string name="msg_done_2">Ticked off. Keep going!</string>
+    <string name="msg_done_3">One less thing to do.</string>
+    <string name="msg_done_4">Great job, task complete.</string>
+    <string name="celebrate_list_title">List complete!</string>
+    <string name="celebrate_list_body">You finished every task in “%1$s”. Well done!</string>
+    <string name="celebrate_day_title">All done for today!</string>
+    <string name="celebrate_day_body">Nothing is left due today. Enjoy the rest of your day.</string>
+
+    <!-- Task editor -->
+    <string name="editor_needs_date">Set a due date to add a time, reminder or repeat.</string>
+    <string name="editor_unsaved_title">Leave without saving?</string>
+    <string name="editor_unsaved_body">You have changes to this task that are not saved yet.</string>
+    <string name="editor_save_and_leave">Save</string>
+    <string name="editor_keep_editing">Keep editing</string>
+    <string name="editor_discard">Discard</string>
+
+    <!-- Today dashboard and Upcoming date strip -->
+    <string name="today_tasks_done">Tasks done</string>
+    <string name="today_done_a11y">%1$d of %2$d tasks done</string>
+    <string name="today_remaining">Remaining</string>
+    <string name="today_overdue">Overdue</string>
+    <string name="today_completed">Completed</string>
+    <string name="filter_all_n">All (%1$d)</string>
+    <string name="filter_today_n">Today (%1$d)</string>
+    <string name="filter_overdue_n">Overdue (%1$d)</string>
+
+    <!-- Quick add sheet and Browse -->
+    <string name="quick_add_title">Add task</string>
+    <string name="action_save_task">Save task</string>
+    <string name="browse_my_lists">My lists</string>
+    <string name="appearance_more">More…</string>
+    <string name="a11y_close_sheet">Close</string>
+    <string name="browse_no_lists">Lists group tasks by project or area. Tap + to make one.</string>
 </resources>

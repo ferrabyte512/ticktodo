@@ -7,11 +7,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
+import app.ticktodo.MainActivity
 import app.ticktodo.core.AppLog
 import app.ticktodo.core.Clock
 import app.ticktodo.data.auth.UserSession
 import app.ticktodo.data.local.AppDatabase
-import app.ticktodo.data.settings.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,9 +19,11 @@ import javax.inject.Singleton
 /**
  * Schedules one alarm per task reminder.
  *
- * Exact alarms are used when the user has allowed them ("Alarms & reminders"
- * special access). Otherwise an inexact alarm is used, which Android may delay;
- * the Settings screen explains this and links to the permission.
+ * With "Alarms & reminders" access the reminder is set as an alarm clock, the
+ * same kind the Clock app uses: it fires at the exact time even in battery
+ * saver or Doze, and the system shows the alarm icon in the status bar for the
+ * next one. Without that access an inexact alarm is used, which Android may
+ * delay; the Settings screen explains this and links to the permission.
  *
  * Alarms are re-created after reboot, app update, time or time-zone change and
  * permission change (see SystemEventsReceiver). An alarm that fires for a task
@@ -33,7 +35,6 @@ class ReminderScheduler @Inject constructor(
     private val db: AppDatabase,
     private val session: UserSession,
     private val clock: Clock,
-    private val settings: SettingsRepository,
 ) {
     private val alarmManager: AlarmManager = context.getSystemService(AlarmManager::class.java)
     private val dao get() = db.taskDao()
@@ -44,7 +45,7 @@ class ReminderScheduler @Inject constructor(
     /** Re-evaluates the reminders of specific tasks after they changed. */
     suspend fun refresh(taskIds: Collection<String>) {
         val uid = session.uid.value ?: return
-        val defaultMinute = settings.current().defaultReminderMinute
+        val defaultMinute = ReminderMath.ALL_DAY_REMINDER_MINUTE
         val now = clock.now()
         val rows = dao.getMany(uid, taskIds).associateBy { it.id }
         for (id in taskIds) {
@@ -63,7 +64,7 @@ class ReminderScheduler @Inject constructor(
     /** Rebuilds every alarm for the signed-in user. */
     suspend fun rescheduleAll(catchUpMissed: Boolean = false) {
         val uid = session.uid.value ?: return
-        val defaultMinute = settings.current().defaultReminderMinute
+        val defaultMinute = ReminderMath.ALL_DAY_REMINDER_MINUTE
         val now = clock.now()
         val scheduled = HashSet<String>()
         for (row in dao.withReminders(uid)) {
@@ -88,7 +89,17 @@ class ReminderScheduler @Inject constructor(
         val pi = alarmIntent(taskId, PendingIntent.FLAG_UPDATE_CURRENT) ?: return
         try {
             if (canScheduleExact()) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                // Tapping the status-bar alarm icon opens the task.
+                val show = PendingIntent.getActivity(
+                    context,
+                    taskId.hashCode(),
+                    Intent(context, MainActivity::class.java)
+                        .setAction(MainActivity.ACTION_OPEN_TASK)
+                        .putExtra(MainActivity.EXTRA_TASK_ID, taskId)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+                alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAt, show), pi)
             } else {
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
             }

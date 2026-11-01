@@ -63,6 +63,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.material.icons.outlined.GridView
+import app.ticktodo.ui.common.Celebration
+import app.ticktodo.ui.common.CelebrationOverlay
+import app.ticktodo.ui.matrix.MatrixScreen
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRailItemDefaults
 import app.ticktodo.R
 import app.ticktodo.data.auth.AuthState
 import app.ticktodo.domain.model.TaskScope
@@ -90,6 +96,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class TodayRoute(val scopeKey: String = "today")
 @Serializable data class UpcomingRoute(val scopeKey: String = "upcoming")
 @Serializable data class EditorRoute(val taskId: String)
+@Serializable data object MatrixRoute
 @Serializable data object BrowseRoute
 @Serializable data object SearchRoute
 @Serializable data object SettingsRoute
@@ -107,6 +114,7 @@ sealed interface PendingAction {
 private enum class TopLevel(val label: Int, val icon: ImageVector) {
     TODAY(R.string.scope_today, Icons.Outlined.Today),
     UPCOMING(R.string.scope_upcoming, Icons.Outlined.CalendarMonth),
+    MATRIX(R.string.nav_matrix, Icons.Outlined.GridView),
     BROWSE(R.string.nav_browse, Icons.Outlined.ViewList),
 }
 
@@ -140,6 +148,9 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
         }
     }
 
+    var celebration by remember { mutableStateOf<Celebration?>(null) }
+    LaunchedEffect(Unit) { viewModel.celebrations.collect { celebration = it } }
+
     LaunchedEffect(pending) {
         when (pending) {
             is PendingAction.OpenTask -> nav.navigate(EditorRoute(pending.taskId))
@@ -158,132 +169,162 @@ private fun MainNavigation(viewModel: MainViewModel, pending: PendingAction?, on
     val current: TopLevel? = when {
         destination == null -> TopLevel.TODAY
         destination.hasRoute<BrowseRoute>() -> TopLevel.BROWSE
+        destination.hasRoute<MatrixRoute>() -> TopLevel.MATRIX
         destination.hasRoute<TodayRoute>() -> TopLevel.TODAY
         destination.hasRoute<UpcomingRoute>() -> TopLevel.UPCOMING
         else -> null
     }
+    val fabScreen = destination?.let { it.hasRoute<TodayRoute>() || it.hasRoute<UpcomingRoute>() || it.hasRoute<ScopeRoute>() } == true
     val wide = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >= 600.dp
     val focusState by viewModel.focusState.collectAsStateWithLifecycle()
     val onFocusScreen = destination?.hasRoute<FocusRoute>() == true
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        contentWindowInsets = WindowInsets(0),
-        bottomBar = {
-            if (!wide && current != null) {
-                NavigationBar(containerColor = glassColor(MaterialTheme.colorScheme.surfaceContainer)) {
-                    TopLevel.entries.forEach { item ->
-                        NavigationBarItem(
-                            selected = current == item,
-                            onClick = { nav.navigateTopLevel(item) },
-                            icon = { Icon(item.icon, null) },
-                            label = { Text(stringResource(item.label)) },
-                        )
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            // On task lists the snackbar sits above the Add task button instead of covering it.
+            snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = if (fabScreen) 80.dp else 0.dp)) },
+            contentWindowInsets = WindowInsets(0),
+            bottomBar = {
+                if (!wide && current != null) {
+                    NavigationBar(containerColor = glassColor(MaterialTheme.colorScheme.surfaceContainer)) {
+                        TopLevel.entries.forEach { item ->
+                            NavigationBarItem(
+                                selected = current == item,
+                                onClick = { nav.navigateTopLevel(item) },
+                                icon = { Icon(item.icon, null) },
+                                label = { Text(stringResource(item.label)) },
+                                colors = topLevelColors(),
+                            )
+                        }
                     }
                 }
-            }
-        },
-    ) { padding ->
-        Row(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
-            if (wide && current != null) {
-                NavigationRail(containerColor = glassColor(MaterialTheme.colorScheme.surfaceContainer)) {
-                    TopLevel.entries.forEach { item ->
-                        NavigationRailItem(
-                            selected = current == item,
-                            onClick = { nav.navigateTopLevel(item) },
-                            icon = { Icon(item.icon, null) },
-                            label = { Text(stringResource(item.label)) },
-                        )
+            },
+        ) { padding ->
+            Row(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+                if (wide && current != null) {
+                    NavigationRail(containerColor = glassColor(MaterialTheme.colorScheme.surfaceContainer)) {
+                        TopLevel.entries.forEach { item ->
+                            NavigationRailItem(
+                                selected = current == item,
+                                onClick = { nav.navigateTopLevel(item) },
+                                icon = { Icon(item.icon, null) },
+                                label = { Text(stringResource(item.label)) },
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                                ),
+                            )
+                        }
                     }
                 }
-            }
-            Column(Modifier.weight(1f)) {
-            val showBanner = focusState != null && !onFocusScreen
-            if (showBanner) FocusBanner(focusState!!) { nav.navigate(FocusRoute()) { launchSingleTop = true } }
-            NavHost(
-                nav,
-                startDestination = TodayRoute("today"),
-                // Short fades: the default 700 ms cross-fade drew two full screens of
-                // translucent cards at once and caused dropped frames on tab switches.
-                enterTransition = { fadeIn(tween(150)) },
-                exitTransition = { fadeOut(tween(90)) },
-                popEnterTransition = { fadeIn(tween(150)) },
-                popExitTransition = { fadeOut(tween(90)) },
-                // The banner already sits under the status bar; screens below must not pad for it again.
-                modifier = Modifier.weight(1f).then(if (showBanner) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier),
-            ) {
-                composable<TodayRoute> {
-                    TasksScreen(
-                        onOpenTask = { nav.navigate(EditorRoute(it)) },
-                        onOpenSearch = { nav.navigate(SearchRoute) },
-                        onOpenSettings = { nav.navigate(SettingsRoute) },
-                        onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
-                        onBack = null,
-                        openQuickAdd = quickAddRequested,
-                        onQuickAddConsumed = { quickAddRequested = false },
-                    )
+                Column(Modifier.weight(1f)) {
+                val showBanner = focusState != null && !onFocusScreen
+                if (showBanner) FocusBanner(focusState!!) { nav.navigate(FocusRoute()) { launchSingleTop = true } }
+                NavHost(
+                    nav,
+                    startDestination = TodayRoute("today"),
+                    // Short fades: the default 700 ms cross-fade drew two full screens of
+                    // translucent cards at once and caused dropped frames on tab switches.
+                    enterTransition = { fadeIn(tween(150)) },
+                    exitTransition = { fadeOut(tween(90)) },
+                    popEnterTransition = { fadeIn(tween(150)) },
+                    popExitTransition = { fadeOut(tween(90)) },
+                    // The banner already sits under the status bar; screens below must not pad for it again.
+                    modifier = Modifier.weight(1f).then(if (showBanner) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier),
+                ) {
+                    composable<TodayRoute> {
+                        TasksScreen(
+                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenSearch = { nav.navigate(SearchRoute) },
+                            onOpenSettings = { nav.navigate(SettingsRoute) },
+                            onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
+                            onBack = null,
+                            openQuickAdd = quickAddRequested,
+                            onQuickAddConsumed = { quickAddRequested = false },
+                        )
+                    }
+                    composable<UpcomingRoute> {
+                        TasksScreen(
+                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenSearch = { nav.navigate(SearchRoute) },
+                            onOpenSettings = { nav.navigate(SettingsRoute) },
+                            onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
+                            onBack = null,
+                        )
+                    }
+                    composable<ScopeRoute> {
+                        TasksScreen(
+                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenSearch = { nav.navigate(SearchRoute) },
+                            onOpenSettings = { nav.navigate(SettingsRoute) },
+                            onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
+                            onBack = { nav.popBackStack() },
+                        )
+                    }
+                    composable<MatrixRoute> {
+                        MatrixScreen(
+                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onOpenSearch = { nav.navigate(SearchRoute) },
+                            onOpenSettings = { nav.navigate(SettingsRoute) },
+                        )
+                    }
+                    composable<BrowseRoute> {
+                        BrowseScreen(
+                            onOpenScope = { scope: TaskScope -> nav.navigate(ScopeRoute(scope.key())) },
+                            onOpenSearch = { nav.navigate(SearchRoute) },
+                            onOpenSettings = { nav.navigate(SettingsRoute) },
+                        )
+                    }
+                    composable<EditorRoute> {
+                        TaskEditorScreen(
+                            onClose = { nav.popBackStack() },
+                            onOpenTask = { nav.navigate(EditorRoute(it)) },
+                            onStartFocus = { nav.navigate(FocusRoute(it)) },
+                        )
+                    }
+                    composable<SearchRoute> {
+                        SearchScreen(onBack = { nav.popBackStack() }, onOpenTask = { nav.navigate(EditorRoute(it)) })
+                    }
+                    composable<SettingsRoute> {
+                        SettingsScreen(
+                            onBack = { nav.popBackStack() },
+                            onOpenLicenses = { nav.navigate(LicensesRoute) },
+                            onOpenAppearance = { nav.navigate(AppearanceRoute) },
+                        )
+                    }
+                    composable<LicensesRoute> {
+                        LicensesScreen(onBack = { nav.popBackStack() })
+                    }
+                    composable<AppearanceRoute> {
+                        AppearanceScreen(onBack = { nav.popBackStack() })
+                    }
+                    composable<FocusRoute> {
+                        FocusScreen(onBack = { nav.popBackStack() })
+                    }
                 }
-                composable<UpcomingRoute> {
-                    TasksScreen(
-                        onOpenTask = { nav.navigate(EditorRoute(it)) },
-                        onOpenSearch = { nav.navigate(SearchRoute) },
-                        onOpenSettings = { nav.navigate(SettingsRoute) },
-                        onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
-                        onBack = null,
-                    )
                 }
-                composable<ScopeRoute> {
-                    TasksScreen(
-                        onOpenTask = { nav.navigate(EditorRoute(it)) },
-                        onOpenSearch = { nav.navigate(SearchRoute) },
-                        onOpenSettings = { nav.navigate(SettingsRoute) },
-                        onOpenFocus = { nav.navigate(FocusRoute()) { launchSingleTop = true } },
-                        onBack = { nav.popBackStack() },
-                    )
-                }
-                composable<BrowseRoute> {
-                    BrowseScreen(
-                        onOpenScope = { scope: TaskScope -> nav.navigate(ScopeRoute(scope.key())) },
-                        onOpenSearch = { nav.navigate(SearchRoute) },
-                        onOpenSettings = { nav.navigate(SettingsRoute) },
-                    )
-                }
-                composable<EditorRoute> {
-                    TaskEditorScreen(
-                        onClose = { nav.popBackStack() },
-                        onOpenTask = { nav.navigate(EditorRoute(it)) },
-                        onStartFocus = { nav.navigate(FocusRoute(it)) },
-                    )
-                }
-                composable<SearchRoute> {
-                    SearchScreen(onBack = { nav.popBackStack() }, onOpenTask = { nav.navigate(EditorRoute(it)) })
-                }
-                composable<SettingsRoute> {
-                    SettingsScreen(
-                        onBack = { nav.popBackStack() },
-                        onOpenLicenses = { nav.navigate(LicensesRoute) },
-                        onOpenAppearance = { nav.navigate(AppearanceRoute) },
-                    )
-                }
-                composable<LicensesRoute> {
-                    LicensesScreen(onBack = { nav.popBackStack() })
-                }
-                composable<AppearanceRoute> {
-                    AppearanceScreen(onBack = { nav.popBackStack() })
-                }
-                composable<FocusRoute> {
-                    FocusScreen(onBack = { nav.popBackStack() })
-                }
-            }
             }
         }
+        celebration?.let { CelebrationOverlay(it) { celebration = null } }
     }
 }
+
+/** Selected tab: accent icon and label on the soft selection pill. */
+@Composable
+private fun topLevelColors() = NavigationBarItemDefaults.colors(
+    selectedIconColor = MaterialTheme.colorScheme.primary,
+    selectedTextColor = MaterialTheme.colorScheme.primary,
+    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+)
 
 private fun NavHostController.navigateTopLevel(item: TopLevel) {
     val route: Any = when (item) {
         TopLevel.TODAY -> TodayRoute("today")
         TopLevel.UPCOMING -> UpcomingRoute("upcoming")
+        TopLevel.MATRIX -> MatrixRoute
         TopLevel.BROWSE -> BrowseRoute
     }
     // Standard bottom-navigation behaviour: one copy of each tab, each tab keeps
@@ -303,7 +344,7 @@ private fun FocusBanner(state: FocusState, onClick: () -> Unit) {
     LaunchedEffect(state.running, state.phaseEndsAt) {
         while (state.running) {
             now = System.currentTimeMillis()
-            delay(1_000)
+            delay((((state.remainingMs(now) - 1) % 1000) + 1).coerceIn(20, 1000))
         }
         now = System.currentTimeMillis()
     }

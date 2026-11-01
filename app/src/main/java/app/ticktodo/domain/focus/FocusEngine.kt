@@ -2,6 +2,7 @@ package app.ticktodo.domain.focus
 
 import kotlinx.serialization.Serializable
 
+/** LONG_BREAK is no longer entered; it stays so sessions saved by older versions still load. */
 @Serializable
 enum class FocusPhase { FOCUS, SHORT_BREAK, LONG_BREAK }
 
@@ -29,13 +30,15 @@ data class FocusState(
     val pausedRemainingMs: Long?,
     /** Focus time spent in the current phase before the last pause, for statistics. */
     val focusMsBeforePause: Long = 0,
+    /** Time added to the current phase with "extend"; reset when the next phase starts. */
+    val extraMs: Long = 0,
 ) {
     val running: Boolean get() = phaseEndsAt != null
     val decodedPlan: FocusPlan get() = FocusPlan.parse(plan) ?: FocusPlan.DEFAULT
 
     fun remainingMs(now: Long): Long = phaseEndsAt?.let { (it - now).coerceAtLeast(0) } ?: (pausedRemainingMs ?: 0)
 
-    fun phaseLengthMs(): Long = FocusEngine.lengthMs(decodedPlan, phase)
+    fun phaseLengthMs(): Long = FocusEngine.lengthMs(decodedPlan, phase) + extraMs
 }
 
 /** What a transition produced, so the caller can record statistics and notify. */
@@ -50,10 +53,12 @@ data class FocusTransition(
 /** Pure focus-timer state machine. Unit tested in FocusEngineTest. */
 object FocusEngine {
 
+    const val EXTEND_MS = 5 * 60_000L
+    const val MAX_EXTRA_MS = 120 * 60_000L
+
     fun lengthMs(plan: FocusPlan, phase: FocusPhase): Long = 60_000L * when (phase) {
         FocusPhase.FOCUS -> plan.focusMinutes
-        FocusPhase.SHORT_BREAK -> plan.shortBreakMinutes
-        FocusPhase.LONG_BREAK -> plan.longBreakMinutes
+        FocusPhase.SHORT_BREAK, FocusPhase.LONG_BREAK -> plan.breakMinutes
     }
 
     fun start(taskId: String, taskTitle: String, plan: FocusPlan, now: Long): FocusState = FocusState(
@@ -79,6 +84,17 @@ object FocusEngine {
         )
     }
 
+    /** Adds [ms] to the current phase, running or paused, up to [MAX_EXTRA_MS] per phase. */
+    fun extend(state: FocusState, ms: Long): FocusState {
+        val add = ms.coerceAtMost(MAX_EXTRA_MS - state.extraMs)
+        if (add <= 0) return state
+        return state.copy(
+            phaseEndsAt = state.phaseEndsAt?.plus(add),
+            pausedRemainingMs = if (state.running) null else (state.pausedRemainingMs ?: state.phaseLengthMs()) + add,
+            extraMs = state.extraMs + add,
+        )
+    }
+
     fun resume(state: FocusState, now: Long): FocusState {
         if (state.running) return state
         val remaining = state.pausedRemainingMs ?: state.phaseLengthMs()
@@ -96,18 +112,13 @@ object FocusEngine {
         return when (state.phase) {
             FocusPhase.FOCUS -> {
                 val completed = state.completedRounds + if (ranToEnd) 1 else 0
-                val total = plan.totalRounds
-                if (total != null && state.round >= total) {
-                    FocusTransition(null, earned, FocusPhase.FOCUS, sessionFinished = true)
-                } else {
-                    val next = if (state.round % plan.roundsBeforeLongBreak == 0) FocusPhase.LONG_BREAK else FocusPhase.SHORT_BREAK
-                    FocusTransition(
-                        enter(state.copy(completedRounds = completed), next, now, plan.autoStartBreaks),
-                        earned,
-                        FocusPhase.FOCUS,
-                        sessionFinished = false,
-                    )
-                }
+                // Sessions repeat focus and break until the user stops them.
+                FocusTransition(
+                    enter(state.copy(completedRounds = completed), FocusPhase.SHORT_BREAK, now, plan.autoStartBreaks),
+                    earned,
+                    FocusPhase.FOCUS,
+                    sessionFinished = false,
+                )
             }
             FocusPhase.SHORT_BREAK, FocusPhase.LONG_BREAK -> FocusTransition(
                 enter(state.copy(round = state.round + 1), FocusPhase.FOCUS, now, plan.autoStartFocus),
@@ -141,6 +152,7 @@ object FocusEngine {
             phaseEndsAt = if (autoStart) now + length else null,
             pausedRemainingMs = if (autoStart) null else length,
             focusMsBeforePause = 0,
+            extraMs = 0,
         )
     }
 

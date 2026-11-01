@@ -7,6 +7,7 @@ import app.ticktodo.data.local.AppDatabase
 import app.ticktodo.data.local.TagCodec
 import app.ticktodo.data.local.TaskEntity
 import app.ticktodo.data.local.TaskListEntity
+import app.ticktodo.data.local.ScopeCounts
 import app.ticktodo.data.local.toDomain
 import app.ticktodo.data.local.toMinuteOfDay
 import app.ticktodo.domain.ConflictResolver
@@ -87,6 +88,23 @@ class TaskRepository @Inject constructor(
     fun observeTags(): Flow<List<String>> = perUser(emptyList()) { uid ->
         taskDao.observeTagStrings(uid).map { rows -> rows.flatMap(TagCodec::decode).distinct().sorted() }
     }
+
+    /** Top-level tasks completed on [day] (device time zone). */
+    fun observeCompletedOn(day: LocalDate): Flow<Int> = perUser(0) { uid ->
+        val start = day.atStartOfDay(clock.zone()).toInstant().toEpochMilli()
+        val end = day.plusDays(1).atStartOfDay(clock.zone()).toInstant().toEpochMilli()
+        taskDao.observeCompletedBetween(uid, start, end)
+    }
+
+    fun observeScopeCounts(today: LocalDate): Flow<ScopeCounts> = perUser(ScopeCounts(0, 0, 0, 0)) { uid ->
+        taskDao.observeScopeCounts(uid, today.toEpochDay())
+    }
+
+    fun observeListCounts(): Flow<Map<String, Int>> = perUser(emptyMap()) { uid ->
+        taskDao.observeListCounts(uid).map { rows -> rows.associate { it.listId to it.count } }
+    }
+
+    fun observeHasListedTasks(): Flow<Boolean> = perUser(false) { uid -> taskDao.observeHasListedTasks(uid) }
 
     fun observePendingChanges(): Flow<Int> = perUser(0) { uid ->
         combine(taskDao.observeDirtyCount(uid), listDao.observeDirtyCount(uid)) { a, b -> a + b }
@@ -223,6 +241,12 @@ class TaskRepository @Inject constructor(
             taskDao.getMany(uid, ids).filter { it.deleted }.forEach { taskDao.upsert(it.edited().copy(deleted = false)) }
         }
         effects.tasksChanged(ids)
+    }
+
+    /** Sets each task's position in "My order". */
+    suspend fun setSortOrders(orders: Map<String, Double>) {
+        if (orders.isEmpty()) return
+        bulkEdit(orders.keys) { row -> orders[row.id]?.let { row.copy(sortOrder = it) } ?: row }
     }
 
     suspend fun setPriority(ids: Collection<String>, priority: Priority) = bulkEdit(ids) { it.copy(priority = priority.level) }

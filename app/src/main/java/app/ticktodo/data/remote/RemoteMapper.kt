@@ -37,7 +37,7 @@ object RemoteMapper {
         "createdAt" to t.createdAt,
         "updatedAt" to t.updatedAt,
         "deleted" to t.deleted,
-    )
+    ) + (if (t.sortOrder != null) mapOf("sortOrder" to t.sortOrder) else emptyMap())
 
     fun listToMap(l: TaskListEntity): Map<String, Any?> = mapOf(
         "id" to l.id,
@@ -69,6 +69,7 @@ object RemoteMapper {
             recurrenceRule = (d["recurrence"] as? String)?.take(100),
             tags = TagCodec.encode(TaskValidator.cleanTags(tags)),
             focusPlan = (d["focusPlan"] as? String)?.takeIf { FocusPlan.parse(it) != null },
+            sortOrder = (d["sortOrder"] as? Number)?.toDouble()?.takeIf { it.isFinite() },
             completed = d["completed"] as? Boolean ?: false,
             completedAt = d.long("completedAt"),
             createdAt = d.long("createdAt") ?: updatedAt,

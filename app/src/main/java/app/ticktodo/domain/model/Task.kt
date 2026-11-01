@@ -32,6 +32,8 @@ data class Task(
     val createdAt: Long,
     val updatedAt: Long,
     val pendingSync: Boolean,
+    /** Position in "My order"; see TaskGrouping.manualKey. */
+    val sortOrder: Double? = null,
 )
 
 /** A task plus the derived information list rows need. */
@@ -99,4 +101,4 @@ sealed interface TaskScope {
     }
 }
 
-enum class TaskSort { DUE_DATE, PRIORITY, CREATED, TITLE }
+enum class TaskSort { MANUAL, DUE_DATE, PRIORITY, CREATED, TITLE }

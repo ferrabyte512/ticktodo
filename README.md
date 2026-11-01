@@ -14,7 +14,7 @@ A lightweight personal to-do app for Android. Tasks are stored on the device fir
 | **Task scheduling** | Due dates and times, priorities, lists, #tags, notes, subtasks, repeating tasks, Today / Upcoming / Inbox / Completed views, search, sorting, bulk actions, undo |
 | **Fast capture** | Quick-add sheet opens with the keyboard ready; Enter saves and stays open for the next task; `#tag` shorthand |
 | **Reliable reminders** | Exact alarms, snooze and complete from the notification, re-armed after reboot and time changes, and a *Reminder health* checklist |
-| **Focus timer sessions** | Opt-in per task. Focus rounds with short and long breaks, presets or custom lengths, pause / skip / stop, live notification countdown, focus statistics |
+| **Focus timer sessions** | Opt-in per task. Focus and break rounds with custom lengths that repeat until you stop, pause / skip / stop, live notification countdown, focus statistics |
 | **Home-screen widgets** | Today & overdue · Upcoming · Task list (any list, tag or view) · Quick add · Focus timer |
 | **Themes** | Six colour themes (Jade, Ocean, Sunset, Lavender, Rose, Graphite), light/dark/system, optional wallpaper colours, large easy-to-tap task cards |
 | **Offline + sync** | Works fully offline; syncs through Firestore when online; per-user security rules |
@@ -361,7 +361,7 @@ npm test
 | Google sign-in shows an error or closes immediately | Add the SHA-1/SHA-256 of the key that signed the build to Firebase, then download `google-services.json` again. |
 | "No Google account is available" | Add a Google account in device settings. On an emulator, use an image with Google Play. |
 | Sync shows "needs attention" | Check that the rules are deployed (`firebase deploy --only firestore`) and, if App Check is enforced, that a debug token is registered. |
-| Reminders arrive late | Settings → Reminder health: allow notifications and "Alarms & reminders", and set battery usage to Unrestricted. |
+| Reminders arrive late | Settings → Reminder health: allow notifications and "Alarms & reminders". If reminders are still late, set Tick ToDo's battery usage to Unrestricted in Android settings. |
 | `SDK location not found` | Create `local.properties` with `sdk.dir=…` (see section 1). |
 | Gradle runs out of memory | Increase `org.gradle.jvmargs` in `gradle.properties`. |
 

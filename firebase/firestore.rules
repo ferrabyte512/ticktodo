@@ -26,7 +26,7 @@ service cloud.firestore {
       return common(id)
         && d.keys().hasOnly(['id', 'schema', 'listId', 'parentId', 'title', 'notes', 'priority',
              'dueEpochDay', 'dueMinuteOfDay', 'reminderOffsetMinutes', 'recurrence', 'tags',
-             'completed', 'completedAt', 'createdAt', 'updatedAt', 'deleted', 'serverUpdatedAt', 'focusPlan'])
+             'completed', 'completedAt', 'createdAt', 'updatedAt', 'deleted', 'serverUpdatedAt', 'focusPlan', 'sortOrder'])
         && d.title is string && d.title.size() >= 1 && d.title.size() <= 500
         && d.notes is string && d.notes.size() <= 10000
         && d.priority is int && d.priority >= 0 && d.priority <= 3
@@ -40,7 +40,9 @@ service cloud.firestore {
         && (d.recurrence == null || (d.recurrence is string && d.recurrence.size() <= 100))
         && (d.completedAt == null || d.completedAt is int)
         // Optional (added in app schema 1 / v1.1); older documents do not have it.
-        && (d.get('focusPlan', null) == null || (d.focusPlan is string && d.focusPlan.size() <= 60));
+        && (d.get('focusPlan', null) == null || (d.focusPlan is string && d.focusPlan.size() <= 60))
+        // Optional (app v1.2): position in "My order".
+        && (d.get('sortOrder', null) == null || d.sortOrder is number);
     }
 
     function validList(id) {

@@ -1,6 +1,17 @@
 package app.ticktodo.ui.tasks
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import app.ticktodo.ui.common.rememberReorderState
+import app.ticktodo.ui.common.reorderItem
+import app.ticktodo.ui.common.reorderHandle
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.material.icons.outlined.DragHandle
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,6 +90,9 @@ fun TasksScreen(
     val focusTaskId by viewModel.focusTaskId.collectAsStateWithLifecycle()
     var showQuickAdd by rememberSaveable { mutableStateOf(false) }
     val scope = viewModel.scope
+    var filter by rememberSaveable { mutableStateOf(TodayFilter.ALL) }
+    var pickedDay by remember { mutableStateOf<LocalDate?>(null) }
+    val coroutines = rememberCoroutineScope()
 
     LaunchedEffect(openQuickAdd) {
         if (openQuickAdd) {
@@ -87,6 +101,43 @@ fun TasksScreen(
         }
     }
     BackHandler(enabled = state.selectionMode) { viewModel.clearSelection() }
+
+    // "My order": while a card is dragged (and until the saved order arrives) the
+    // screen shows a local copy of the sections that the drag rearranges.
+    val manual = state.sort == TaskSort.MANUAL && !state.selectionMode && scope != TaskScope.Completed
+    val listState = rememberLazyListState()
+    var localSections by remember { mutableStateOf<List<TaskSection>?>(null) }
+    LaunchedEffect(state.sections) { localSections = null }
+    val reorder = rememberReorderState(listState) { from, to ->
+        val sections = localSections ?: state.sections
+        val section = sections.firstOrNull { s -> s.items.any { it.task.id == from } && s.items.any { it.task.id == to } }
+            ?: return@rememberReorderState false
+        val items = section.items.toMutableList()
+        val fromIndex = items.indexOfFirst { it.task.id == from }
+        val toIndex = items.indexOfFirst { it.task.id == to }
+        items.add(toIndex, items.removeAt(fromIndex))
+        localSections = sections.map { if (it.key == section.key) it.copy(items = items) else it }
+        true
+    }
+    val drop by rememberUpdatedState { key: Any ->
+        val section = localSections?.firstOrNull { s -> s.items.any { it.task.id == key } }
+        if (section != null) viewModel.reorder(section.items, key as String) else localSections = null
+    }
+    val onDrop = remember { { key: Any -> drop(key) } }
+    val shownSections = localSections ?: state.sections
+    // Screen-reader alternative to dragging: move one place up or down.
+    fun moveBy(section: TaskSection, id: String, delta: Int) {
+        val items = section.items.toMutableList()
+        val from = items.indexOfFirst { it.task.id == id }
+        val to = from + delta
+        if (from < 0 || to !in items.indices) return
+        items.add(to, items.removeAt(from))
+        localSections = shownSections.map { if (it.key == section.key) it.copy(items = items) else it }
+        viewModel.reorder(items, id)
+    }
+    val moveUpLabel = stringResource(R.string.a11y_move_up)
+    val moveDownLabel = stringResource(R.string.a11y_move_down)
+    val dragLabel = stringResource(R.string.a11y_drag_to_reorder)
 
     val title = when (scope) {
         TaskScope.Today -> stringResource(R.string.scope_today)
@@ -148,7 +199,7 @@ fun TasksScreen(
             onRefresh = viewModel::refresh,
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
                 item(key = "status") {
                     StatusStrip(
                         offline = status.offline,
@@ -163,14 +214,44 @@ fun TasksScreen(
                             state.today.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        )
+                    }
+                    item(key = "dashboard") {
+                        val overdue = shownSections.firstOrNull { it.header == SectionHeader.Overdue }?.items?.size ?: 0
+                        val due = shownSections.firstOrNull { it.header == SectionHeader.Today }?.items?.size ?: 0
+                        TodayDashboard(done = state.completedToday, remaining = due, overdue = overdue, filter = filter, onFilter = { filter = it })
+                    }
+                }
+                if (scope == TaskScope.Upcoming) {
+                    item(key = "dates") {
+                        val days = shownSections.mapNotNull { (it.header as? SectionHeader.Day)?.date }.toSet()
+                        DateStrip(
+                            today = state.today,
+                            daysWithTasks = days,
+                            selected = pickedDay,
+                            onPick = { day ->
+                                pickedDay = day
+                                // Items before the sections: status, this strip, maybe the empty state.
+                                var index = 2 + if (state.isEmpty) 1 else 0
+                                for (section in shownSections) {
+                                    if ((section.header as? SectionHeader.Day)?.date == day) break
+                                    index += (if (section.header != null) 1 else 0) + section.items.size
+                                }
+                                coroutines.launch { listState.animateScrollToItem(index) }
+                            },
                         )
                     }
                 }
                 if (state.isEmpty) {
                     item(key = "empty") { EmptyFor(scope) }
                 }
-                state.sections.forEach { section ->
+                val visibleSections = if (scope != TaskScope.Today) shownSections else when (filter) {
+                    TodayFilter.ALL -> shownSections
+                    TodayFilter.TODAY -> shownSections.filter { it.header == SectionHeader.Today }
+                    TodayFilter.OVERDUE -> shownSections.filter { it.header == SectionHeader.Overdue }
+                }
+                visibleSections.forEach { section ->
                     section.header?.let { header ->
                         item(key = "h-${section.key}") {
                             when (header) {
@@ -194,12 +275,28 @@ fun TasksScreen(
                             },
                             onLongClick = { viewModel.toggleSelection(item.task.id) },
                             onDelete = { viewModel.delete(listOf(item.task.id)) },
-                            modifier = Modifier.animateItem(),
+                            modifier = if (reorder.draggingKey == item.task.id) Modifier.reorderItem(reorder, item.task.id) else Modifier.animateItem(),
                             onStartFocus = if (item.task.focusPlan != null) ({
                                 viewModel.startFocus(item.task)
                                 onOpenFocus()
                             }) else null,
                             focusing = item.task.id == focusTaskId,
+                            dragHandle = if (manual && !item.task.isCompleted) ({
+                                Icon(
+                                    Icons.Outlined.DragHandle,
+                                    contentDescription = "$dragLabel: ${item.task.title}",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(end = 4.dp)
+                                        .size(48.dp)
+                                        .padding(12.dp)
+                                        .reorderHandle(reorder, item.task.id, onDrop),
+                                )
+                            }) else null,
+                            extraActions = if (manual) listOf(
+                                CustomAccessibilityAction(moveUpLabel) { moveBy(section, item.task.id, -1); true },
+                                CustomAccessibilityAction(moveDownLabel) { moveBy(section, item.task.id, 1); true },
+                            ) else emptyList(),
                         )
                     }
                 }
@@ -244,6 +341,7 @@ private fun SortMenu(current: TaskSort, onSelect: (TaskSort) -> Unit) {
                     Text(
                         stringResource(
                             when (sort) {
+                                TaskSort.MANUAL -> R.string.sort_manual
                                 TaskSort.DUE_DATE -> R.string.sort_due
                                 TaskSort.PRIORITY -> R.string.sort_priority
                                 TaskSort.CREATED -> R.string.sort_created

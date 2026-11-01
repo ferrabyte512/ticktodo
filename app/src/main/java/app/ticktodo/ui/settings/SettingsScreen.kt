@@ -24,10 +24,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import app.ticktodo.data.settings.AppTheme
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import app.ticktodo.ui.theme.AccentPresets
+import app.ticktodo.ui.theme.label
+import app.ticktodo.ui.theme.seed
 import app.ticktodo.ui.common.syncErrorHelp
 import app.ticktodo.ui.common.syncErrorTitle
 import app.ticktodo.ui.focus.PlanEditor
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,10 +46,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Alarm
-import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Description
@@ -90,9 +96,6 @@ import app.ticktodo.data.settings.ThemeMode
 import app.ticktodo.ui.common.ConfirmDialog
 import app.ticktodo.ui.common.ReminderPermissions
 import app.ticktodo.ui.common.SectionTitle
-import app.ticktodo.ui.common.TimePickerModal
-import app.ticktodo.ui.common.formatTime
-import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,14 +111,11 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     var notificationsOk by remember { mutableStateOf(true) }
     var exactOk by remember { mutableStateOf(true) }
-    var batteryOk by remember { mutableStateOf(true) }
-    var showReminderTime by remember { mutableStateOf(false) }
     var showFocusPlan by remember { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
         notificationsOk = ReminderPermissions.notificationsAllowed(context)
         exactOk = ReminderPermissions.exactAlarmsAllowed(context)
-        batteryOk = ReminderPermissions.batteryUnrestricted(context)
         viewModel.onPermissionsMaybeChanged()
         onPauseOrDispose { }
     }
@@ -198,23 +198,6 @@ fun SettingsScreen(
                     problemText = stringResource(R.string.health_exact_off),
                     onFix = { ReminderPermissions.exactAlarmSettingsIntent(context)?.let { runCatching { context.startActivity(it) } } },
                 )
-                HealthItem(
-                    icon = Icons.Outlined.BatteryAlert,
-                    title = stringResource(R.string.health_battery),
-                    ok = batteryOk,
-                    okText = stringResource(R.string.health_battery_ok),
-                    problemText = stringResource(R.string.health_battery_restricted),
-                    onFix = { runCatching { context.startActivity(ReminderPermissions.batterySettingsIntent()) } },
-                )
-                ListItem(
-                    modifier = Modifier.clickable { showReminderTime = true },
-                    leadingContent = { Icon(Icons.Outlined.AccessTime, null) },
-                    headlineContent = { Text(stringResource(R.string.settings_default_reminder_time)) },
-                    supportingContent = {
-                        val m = state.settings.defaultReminderMinute
-                        Text(formatTime(LocalTime.of(m / 60, m % 60)))
-                    },
-                )
 
                 // Focus timer
                 SectionTitle(stringResource(R.string.focus_section))
@@ -224,7 +207,7 @@ fun SettingsScreen(
                     headlineContent = { Text(stringResource(R.string.settings_default_focus_plan)) },
                     supportingContent = {
                         val p = state.settings.defaultFocusPlan
-                        Text(stringResource(R.string.focus_plan_summary, p.focusMinutes, p.shortBreakMinutes, p.longBreakMinutes))
+                        Text(stringResource(R.string.focus_plan_summary, p.focusMinutes, p.breakMinutes))
                     },
                 )
 
@@ -233,8 +216,45 @@ fun SettingsScreen(
                 ListItem(
                     modifier = Modifier.clickable(onClick = onOpenAppearance),
                     leadingContent = { Icon(Icons.Outlined.Palette, null) },
-                    headlineContent = { Text(stringResource(R.string.appearance_title)) },
-                    supportingContent = { Text(stringResource(R.string.appearance_summary)) },
+                    headlineContent = { Text(stringResource(R.string.settings_theme)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                when (state.settings.themeMode) {
+                                    ThemeMode.SYSTEM -> R.string.theme_system
+                                    ThemeMode.LIGHT -> R.string.theme_light
+                                    ThemeMode.DARK -> R.string.theme_dark
+                                },
+                            ),
+                        )
+                    },
+                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null) },
+                )
+                ListItem(
+                    leadingContent = { Icon(Icons.Outlined.Colorize, null) },
+                    headlineContent = { Text(stringResource(R.string.appearance_accent)) },
+                    supportingContent = {
+                        val a = state.settings.appearance
+                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            AccentPresets.take(5).forEach { theme ->
+                                val chosen = a.customAccent == null && a.accent == theme && !state.settings.dynamicColor
+                                val label = stringResource(theme.label)
+                                Box(
+                                    Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(theme.seed))
+                                        .then(if (chosen) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
+                                        .clickable { viewModel.setAppTheme(theme) }
+                                        .semantics { role = Role.RadioButton; selected = chosen; contentDescription = label },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (chosen) Icon(Icons.Outlined.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            TextButton(onClick = onOpenAppearance) { Text(stringResource(R.string.appearance_more)) }
+                        }
+                    },
                 )
 
                 // About & legal
@@ -304,11 +324,6 @@ fun SettingsScreen(
             },
             dismissButton = { TextButton(onClick = { showFocusPlan = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
-    }
-
-    if (showReminderTime) {
-        val m = state.settings.defaultReminderMinute
-        TimePickerModal(LocalTime.of(m / 60, m % 60), { viewModel.setDefaultReminderMinute(it.hour * 60 + it.minute) }) { showReminderTime = false }
     }
 }
 

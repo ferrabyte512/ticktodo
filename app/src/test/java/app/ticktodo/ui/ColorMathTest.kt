@@ -3,6 +3,7 @@ package app.ticktodo.ui
 import androidx.compose.ui.graphics.toArgb
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.ticktodo.data.settings.AppTheme
+import app.ticktodo.data.settings.Appearance
 import app.ticktodo.ui.theme.ColorMath
 import app.ticktodo.ui.theme.schemeFromSeed
 import app.ticktodo.ui.theme.seed
@@ -104,15 +105,29 @@ class ThemeContrastTest {
             check(s.onSurface, s.surfaceContainerLow, 7.0, "onSurface/card")
             check(s.onSurfaceVariant, s.surfaceContainerLow, 4.5, "onSurfaceVariant/card")
             check(s.tertiary, s.background, 3.0, "tertiary ring")
+            check(s.inversePrimary, s.inverseSurface, 4.5, "snackbar action")
+            check(s.inverseOnSurface, s.inverseSurface, 4.5, "snackbar text")
         }
     }
 
-    @Test fun `default light theme is warm off-white with an apricot accent`() {
-        val s = schemeFromSeed(AppTheme.APRICOT.seed, dark = false)
-        val bg = s.background.toArgb()
-        assertTrue(ColorMath.red(bg) > ColorMath.blue(bg), "background should lean warm")
-        assertTrue(ColorMath.relativeLuminance(bg) > 0.9, "background should be near white")
-        val container = ColorMath.toHsv(s.primaryContainer.toArgb())
-        assertTrue(container.hue in 10f..40f, "primary container should be light orange, hue=${container.hue}")
+    @Test fun `the whole palette follows the accent hue, deep in dark mode and pale in light mode`() {
+        for (theme in listOf(AppTheme.EMERALD, AppTheme.OCEAN, AppTheme.ROSE)) {
+            val hue = ColorMath.toHsv(theme.seed).hue
+            fun near(argb: Int) = abs(ColorMath.toHsv(argb).hue - hue) < 12f || ColorMath.toHsv(argb).saturation < 0.05f
+
+            val dark = schemeFromSeed(theme.seed, dark = true)
+            val bg = ColorMath.toHsv(dark.background.toArgb())
+            assertTrue(near(dark.background.toArgb()) && bg.value < 0.12f && bg.saturation > 0.4f, "$theme dark page should be a deep shade, got $bg")
+            val primary = ColorMath.toHsv(dark.primary.toArgb())
+            assertTrue(near(dark.primary.toArgb()) && primary.value > 0.8f, "$theme dark buttons should be a bright shade, got $primary")
+            assertTrue(near(dark.surfaceContainerLow.toArgb()) && near(dark.secondaryContainer.toArgb()))
+
+            val light = schemeFromSeed(theme.seed, dark = false)
+            val page = ColorMath.toHsv(light.background.toArgb())
+            assertTrue(near(light.background.toArgb()) && page.value > 0.98f && page.saturation < 0.06f, "$theme light page should be a pale tint, got $page")
+            assertTrue(near(light.primary.toArgb()))
+            assertTrue(ColorMath.contrast(light.primary.toArgb(), light.background.toArgb()) >= 4.5)
+            assertTrue(ColorMath.contrast(dark.primary.toArgb(), dark.background.toArgb()) >= 4.5)
+        }
     }
 }

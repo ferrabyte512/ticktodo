@@ -62,25 +62,52 @@ interface TaskDao {
     @Query("SELECT COUNT(*) FROM tasks WHERE ownerUid = :uid AND dirty = 1")
     fun observeDirtyCount(uid: String): Flow<Int>
 
-    @Query("SELECT * FROM tasks WHERE ownerUid = :uid AND deleted = 0 AND completed = 0 AND parentId IS NULL AND dueEpochDay IS NOT NULL AND dueEpochDay <= :today ORDER BY dueEpochDay, dueMinuteOfDay IS NULL, dueMinuteOfDay, priority DESC LIMIT :limit")
-    suspend fun todayForWidget(uid: String, today: Long, limit: Int): List<TaskEntity>
+    @Query("SELECT COUNT(*) FROM tasks t WHERE $ACTIVE_TOP AND t.completed = 0 AND t.listId = :listId")
+    suspend fun countOpenInList(uid: String, listId: String): Int
 
-    // ---- Widgets (one-shot reads) ----------------------------------------------------------
+    @Query("SELECT COUNT(*) FROM tasks t WHERE $ACTIVE_TOP AND t.completed = 0 AND t.dueEpochDay IS NOT NULL AND t.dueEpochDay <= :today")
+    suspend fun countOpenDueBy(uid: String, today: Long): Int
+
+    /** Top-level tasks completed within [from, to): the Today ring. */
+    @Query("SELECT COUNT(*) FROM tasks t WHERE $ACTIVE_TOP AND t.completed = 1 AND t.completedAt >= :from AND t.completedAt < :to")
+    fun observeCompletedBetween(uid: String, from: Long, to: Long): Flow<Int>
+
+    /** Open-task counts for the Browse screen, in one query. */
+    @Query(
+        "SELECT COALESCE(SUM(t.listId IS NULL), 0) AS inbox, " +
+            "COALESCE(SUM(t.dueEpochDay IS NOT NULL AND t.dueEpochDay <= :today), 0) AS today, " +
+            "COALESCE(SUM(t.dueEpochDay > :today), 0) AS upcoming, COUNT(*) AS total " +
+            "FROM tasks t WHERE $ACTIVE_TOP AND t.completed = 0",
+    )
+    fun observeScopeCounts(uid: String, today: Long): Flow<ScopeCounts>
+
+    @Query("SELECT t.listId AS listId, COUNT(*) AS count FROM tasks t WHERE $ACTIVE_TOP AND t.completed = 0 AND t.listId IS NOT NULL GROUP BY t.listId")
+    fun observeListCounts(uid: String): Flow<List<ListCount>>
+
+    /** True while any open task sits in a list, i.e. while Inbox shows something different from All tasks. */
+    @Query("SELECT EXISTS(SELECT 1 FROM tasks t WHERE $ACTIVE_TOP AND t.completed = 0 AND t.listId IS NOT NULL)")
+    fun observeHasListedTasks(uid: String): Flow<Boolean>
+
+
+    // ---- Widgets (live streams, so an open widget session always shows current data) ------
+
+    @Query("SELECT * FROM tasks WHERE ownerUid = :uid AND deleted = 0 AND completed = 0 AND parentId IS NULL AND dueEpochDay IS NOT NULL AND dueEpochDay <= :today ORDER BY dueEpochDay, dueMinuteOfDay IS NULL, dueMinuteOfDay, priority DESC LIMIT :limit")
+    fun widgetToday(uid: String, today: Long, limit: Int): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE ownerUid = :uid AND deleted = 0 AND completed = 0 AND parentId IS NULL AND dueEpochDay > :today AND dueEpochDay <= :until ORDER BY dueEpochDay, dueMinuteOfDay IS NULL, dueMinuteOfDay, priority DESC LIMIT :limit")
-    suspend fun upcomingForWidget(uid: String, today: Long, until: Long, limit: Int): List<TaskEntity>
+    fun widgetUpcoming(uid: String, today: Long, until: Long, limit: Int): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE ownerUid = :uid AND deleted = 0 AND completed = 0 AND parentId IS NULL AND listId IS NULL ORDER BY dueEpochDay IS NULL, dueEpochDay, priority DESC, createdAt DESC LIMIT :limit")
-    suspend fun inboxForWidget(uid: String, limit: Int): List<TaskEntity>
+    fun widgetInbox(uid: String, limit: Int): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE ownerUid = :uid AND deleted = 0 AND completed = 0 AND parentId IS NULL ORDER BY dueEpochDay IS NULL, dueEpochDay, priority DESC, createdAt DESC LIMIT :limit")
-    suspend fun allForWidget(uid: String, limit: Int): List<TaskEntity>
+    fun widgetAll(uid: String, limit: Int): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE ownerUid = :uid AND deleted = 0 AND completed = 0 AND parentId IS NULL AND listId = :listId ORDER BY dueEpochDay IS NULL, dueEpochDay, priority DESC, createdAt DESC LIMIT :limit")
-    suspend fun inListForWidget(uid: String, listId: String, limit: Int): List<TaskEntity>
+    fun widgetInList(uid: String, listId: String, limit: Int): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE ownerUid = :uid AND deleted = 0 AND completed = 0 AND parentId IS NULL AND tags LIKE '%,' || :tag || ',%' ORDER BY dueEpochDay IS NULL, dueEpochDay, priority DESC, createdAt DESC LIMIT :limit")
-    suspend fun withTagForWidget(uid: String, tag: String, limit: Int): List<TaskEntity>
+    fun widgetWithTag(uid: String, tag: String, limit: Int): Flow<List<TaskEntity>>
 
     // ---- Single rows -------------------------------------------------------------------------
 
@@ -140,3 +167,7 @@ interface TaskDao {
     @Query("SELECT COUNT(*) FROM tasks WHERE ownerUid = :uid AND dirty = 1")
     suspend fun dirtyCount(uid: String): Int
 }
+
+data class ScopeCounts(val inbox: Int, val today: Int, val upcoming: Int, val total: Int)
+
+data class ListCount(val listId: String, val count: Int)

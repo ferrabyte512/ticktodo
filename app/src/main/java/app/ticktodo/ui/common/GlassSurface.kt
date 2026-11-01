@@ -33,16 +33,17 @@ fun GlassSurface(
     content: @Composable () -> Unit,
 ) {
     val state = LocalAppearance.current
+    // Cards are outlined with a fine border rather than lifted with shadows.
     val border = if (state.glass) {
         BorderStroke(1.dp, if (state.dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.65f))
     } else {
-        null
+        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     }
     Surface(
         modifier = modifier,
         shape = shape,
         color = glassColor(color),
-        tonalElevation = tonalElevation,
+        tonalElevation = if (state.glass) tonalElevation else 0.dp,
         border = border,
         content = content,
     )

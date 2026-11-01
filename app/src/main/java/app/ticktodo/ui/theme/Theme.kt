@@ -20,6 +20,10 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.activity.compose.LocalActivity
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,11 +35,14 @@ import app.ticktodo.data.settings.ThemeMode
 import app.ticktodo.domain.model.Priority
 
 // ---------------------------------------------------------------------------------------------
-// Accent presets: rich but light colours that sit well on warm off-white.
+// Accent presets. Emerald is the default; the others are kept for people who chose them.
 // ---------------------------------------------------------------------------------------------
 
 val AppTheme.seed: Int
     get() = when (this) {
+        AppTheme.EMERALD -> 0xFF079B48
+        // Soft teal, between green, blue and cyan.
+        AppTheme.LAGOON -> 0xFF4E9A9A
         AppTheme.APRICOT -> 0xFFE8743B
         AppTheme.SUNSET -> 0xFFD2553F
         AppTheme.HONEY -> 0xFFD39A2C
@@ -49,6 +56,8 @@ val AppTheme.seed: Int
 @get:StringRes
 val AppTheme.label: Int
     get() = when (this) {
+        AppTheme.EMERALD -> R.string.theme_emerald
+        AppTheme.LAGOON -> R.string.theme_lagoon
         AppTheme.APRICOT -> R.string.theme_apricot
         AppTheme.SUNSET -> R.string.theme_terracotta
         AppTheme.HONEY -> R.string.theme_honey
@@ -59,10 +68,10 @@ val AppTheme.label: Int
         AppTheme.GRAPHITE -> R.string.theme_graphite
     }
 
-/** Display order in the picker: warm first. */
+/** Display order in the picker: the default first, then the main choices, then the rest. */
 val AccentPresets = listOf(
-    AppTheme.APRICOT, AppTheme.SUNSET, AppTheme.HONEY, AppTheme.ROSE,
-    AppTheme.LAVENDER, AppTheme.OCEAN, AppTheme.JADE, AppTheme.GRAPHITE,
+    AppTheme.EMERALD, AppTheme.APRICOT, AppTheme.OCEAN, AppTheme.LAVENDER, AppTheme.ROSE,
+    AppTheme.LAGOON, AppTheme.SUNSET, AppTheme.HONEY, AppTheme.JADE, AppTheme.GRAPHITE,
 )
 
 fun Appearance.seedColor(): Int = customAccent ?: accent.seed
@@ -71,32 +80,22 @@ fun Appearance.seedColor(): Int = customAccent ?: accent.seed
 // Scheme construction
 // ---------------------------------------------------------------------------------------------
 
-private object Neutrals {
-    // Warm off-white and beige for light mode.
-    const val L_BG = 0xFFFBF8F4.toInt()
-    const val L_LOWEST = 0xFFFFFFFF.toInt()
-    const val L_LOW = 0xFFF8F3ED.toInt()
-    const val L_MID = 0xFFF3EDE5.toInt()
-    const val L_HIGH = 0xFFEEE7DE.toInt()
-    const val L_HIGHEST = 0xFFE8E0D6.toInt()
-    const val L_VARIANT = 0xFFEFE6DC.toInt()
-    const val L_ON = 0xFF24201C.toInt()
-    const val L_ON_VARIANT = 0xFF5B534B.toInt()
-    const val L_OUTLINE = 0xFF877D73.toInt()
-    const val L_OUTLINE_VARIANT = 0xFFDCD2C7.toInt()
+/**
+ * Every colour comes from the accent's hue. Dark mode is a deep shade of that
+ * hue with a bright shade for buttons and the selected tab; light mode is the
+ * same idea inverted: a pale tint for the page and a deep shade for buttons.
+ * So a blue accent gives a navy page with light-blue buttons, a green accent a
+ * forest page with mint buttons, and so on.
+ */
+private class Palette(seedArgb: Int) {
+    private val hsv = ColorMath.toHsv(seedArgb)
+    val hue: Float get() = hsv.hue
 
-    // Warm, soft dark mode.
-    const val D_BG = 0xFF161311.toInt()
-    const val D_LOWEST = 0xFF100E0C.toInt()
-    const val D_LOW = 0xFF1E1A17.toInt()
-    const val D_MID = 0xFF231F1B.toInt()
-    const val D_HIGH = 0xFF2D2824.toInt()
-    const val D_HIGHEST = 0xFF38322D.toInt()
-    const val D_VARIANT = 0xFF3A342E.toInt()
-    const val D_ON = 0xFFEEE7E0.toInt()
-    const val D_ON_VARIANT = 0xFFD0C6BC.toInt()
-    const val D_OUTLINE = 0xFF9B9188.toInt()
-    const val D_OUTLINE_VARIANT = 0xFF4A433D.toInt()
+    /** Greyer accents (graphite) tint surfaces less; vivid ones a little more. */
+    private val chroma = (hsv.saturation / 0.8f).coerceIn(0.25f, 1f)
+
+    /** A shade of the accent hue; [s] is scaled by the accent's own vividness. */
+    fun shade(s: Float, v: Float): Int = ColorMath.fromHsv(ColorMath.Hsv(hue, (s * chroma).coerceIn(0f, 1f), v.coerceIn(0f, 1f)))
 }
 
 private const val WHITE = 0xFFFFFFFF.toInt()
@@ -109,84 +108,94 @@ private const val BLACK = 0xFF000000.toInt()
  */
 fun schemeFromSeed(seedArgb: Int, dark: Boolean): ColorScheme {
     val seed = ColorMath.withAlpha(seedArgb, 1f)
-    val n = Neutrals
-    fun tint(base: Int, amount: Float = 0.035f) = Color(ColorMath.blend(base, seed, amount))
+    val p = Palette(seed)
     val accent2 = ColorMath.shiftHue(seed, 35f)
+    val p2 = Palette(accent2)
     return if (!dark) {
-        val bg = ColorMath.blend(n.L_BG, seed, 0.03f)
+        val bg = p.shade(0.02f, 1f)
+        // The accent itself, deepened only if it is too light to read on the pale page.
         val primary = ColorMath.ensureContrast(seed, bg, 4.5)
-        val primaryContainer = ColorMath.blend(seed, WHITE, 0.78f)
-        val secondaryBase = ColorMath.blend(seed, 0xFF7C726A.toInt(), 0.45f)
-        val secondary = ColorMath.ensureContrast(secondaryBase, bg, 4.5)
-        val secondaryContainer = ColorMath.blend(seed, bg, 0.84f)
+        val primaryContainer = p.shade(0.16f, 1f)
+        val secondary = ColorMath.ensureContrast(p.shade(0.45f, 0.5f), bg, 4.5)
+        // Selected-tab pill, chips and the soft selection colour.
+        val secondaryContainer = p.shade(0.12f, 0.98f)
         val tertiary = ColorMath.ensureContrast(accent2, bg, 3.0)
-        val tertiaryContainer = ColorMath.blend(accent2, WHITE, 0.8f)
+        val tertiaryContainer = p2.shade(0.16f, 1f)
+        val inverseSurface = p.shade(0.5f, 0.17f)
         lightColorScheme(
             primary = Color(primary),
             onPrimary = Color(ColorMath.onColor(primary)),
             primaryContainer = Color(primaryContainer),
-            onPrimaryContainer = Color(ColorMath.ensureContrast(ColorMath.blend(seed, BLACK, 0.55f), primaryContainer, 4.5)),
-            inversePrimary = Color(ColorMath.blend(seed, WHITE, 0.4f)),
+            onPrimaryContainer = Color(ColorMath.ensureContrast(p.shade(0.9f, 0.4f), primaryContainer, 4.5)),
+            // Snackbar action colour; checked against the dark snackbar surface.
+            inversePrimary = Color(ColorMath.ensureContrast(p.shade(0.6f, 0.95f), inverseSurface, 4.5)),
+            inverseSurface = Color(inverseSurface),
+            inverseOnSurface = Color(p.shade(0.03f, 0.97f)),
             secondary = Color(secondary),
             onSecondary = Color(ColorMath.onColor(secondary)),
             secondaryContainer = Color(secondaryContainer),
-            onSecondaryContainer = Color(ColorMath.ensureContrast(ColorMath.blend(seed, BLACK, 0.6f), secondaryContainer, 4.5)),
+            onSecondaryContainer = Color(ColorMath.ensureContrast(p.shade(0.9f, 0.38f), secondaryContainer, 4.5)),
             tertiary = Color(tertiary),
             onTertiary = Color(ColorMath.onColor(tertiary)),
             tertiaryContainer = Color(tertiaryContainer),
-            onTertiaryContainer = Color(ColorMath.ensureContrast(ColorMath.blend(accent2, BLACK, 0.6f), tertiaryContainer, 4.5)),
+            onTertiaryContainer = Color(ColorMath.ensureContrast(p2.shade(0.9f, 0.38f), tertiaryContainer, 4.5)),
             background = Color(bg),
-            onBackground = Color(n.L_ON),
+            onBackground = Color(p.shade(0.3f, 0.13f)),
             surface = Color(bg),
-            onSurface = Color(n.L_ON),
-            surfaceVariant = tint(n.L_VARIANT),
-            onSurfaceVariant = Color(n.L_ON_VARIANT),
+            onSurface = Color(p.shade(0.3f, 0.13f)),
+            surfaceVariant = Color(p.shade(0.08f, 0.96f)),
+            onSurfaceVariant = Color(p.shade(0.15f, 0.45f)),
             surfaceTint = Color(primary),
-            surfaceContainerLowest = Color(n.L_LOWEST),
-            surfaceContainerLow = tint(n.L_LOW),
-            surfaceContainer = tint(n.L_MID),
-            surfaceContainerHigh = tint(n.L_HIGH),
-            surfaceContainerHighest = tint(n.L_HIGHEST),
-            outline = Color(n.L_OUTLINE),
-            outlineVariant = tint(n.L_OUTLINE_VARIANT, 0.06f),
+            surfaceContainerLowest = Color(WHITE),
+            surfaceContainerLow = Color(p.shade(0.03f, 0.995f)),
+            surfaceContainer = Color(p.shade(0.05f, 0.98f)),
+            surfaceContainerHigh = Color(p.shade(0.07f, 0.965f)),
+            surfaceContainerHighest = Color(p.shade(0.1f, 0.94f)),
+            outline = Color(p.shade(0.12f, 0.58f)),
+            outlineVariant = Color(p.shade(0.1f, 0.9f)),
         )
     } else {
-        val bg = ColorMath.blend(n.D_BG, seed, 0.03f)
-        val primary = ColorMath.ensureContrast(ColorMath.blend(seed, WHITE, 0.2f), bg, 4.5)
-        val primaryContainer = ColorMath.blend(seed, bg, 0.62f)
-        val secondaryBase = ColorMath.blend(seed, 0xFFC9BFB6.toInt(), 0.5f)
-        val secondary = ColorMath.ensureContrast(secondaryBase, bg, 4.5)
-        val secondaryContainer = ColorMath.blend(seed, bg, 0.75f)
-        val tertiary = ColorMath.ensureContrast(ColorMath.blend(accent2, WHITE, 0.2f), bg, 3.0)
-        val tertiaryContainer = ColorMath.blend(accent2, bg, 0.65f)
+        val bg = p.shade(0.68f, 0.075f)
+        // A bright, luminous shade of the accent for buttons and the selected tab.
+        val primary = ColorMath.ensureContrast(p.shade(0.85f, 0.9f), bg, 4.5)
+        val primaryContainer = p.shade(0.7f, 0.3f)
+        val secondary = ColorMath.ensureContrast(p.shade(0.35f, 0.8f), bg, 4.5)
+        // Selected surface: a lighter panel of the same hue.
+        val secondaryContainer = p.shade(0.65f, 0.26f)
+        val tertiary = ColorMath.ensureContrast(p2.shade(0.75f, 0.9f), bg, 3.0)
+        val tertiaryContainer = p2.shade(0.65f, 0.3f)
+        val inverseSurface = p.shade(0.1f, 0.92f)
         darkColorScheme(
             primary = Color(primary),
             onPrimary = Color(ColorMath.onColor(primary)),
             primaryContainer = Color(primaryContainer),
-            onPrimaryContainer = Color(ColorMath.ensureContrast(ColorMath.blend(seed, WHITE, 0.6f), primaryContainer, 4.5)),
-            inversePrimary = Color(ColorMath.blend(seed, BLACK, 0.3f)),
+            onPrimaryContainer = Color(ColorMath.ensureContrast(p.shade(0.3f, 0.95f), primaryContainer, 4.5)),
+            // Snackbar action colour; checked against the light snackbar surface.
+            inversePrimary = Color(ColorMath.ensureContrast(p.shade(0.9f, 0.5f), inverseSurface, 4.5)),
+            inverseSurface = Color(inverseSurface),
+            inverseOnSurface = Color(p.shade(0.3f, 0.13f)),
             secondary = Color(secondary),
             onSecondary = Color(ColorMath.onColor(secondary)),
             secondaryContainer = Color(secondaryContainer),
-            onSecondaryContainer = Color(ColorMath.ensureContrast(ColorMath.blend(seed, WHITE, 0.65f), secondaryContainer, 4.5)),
+            onSecondaryContainer = Color(ColorMath.ensureContrast(p.shade(0.25f, 0.97f), secondaryContainer, 4.5)),
             tertiary = Color(tertiary),
             onTertiary = Color(ColorMath.onColor(tertiary)),
             tertiaryContainer = Color(tertiaryContainer),
-            onTertiaryContainer = Color(ColorMath.ensureContrast(ColorMath.blend(accent2, WHITE, 0.65f), tertiaryContainer, 4.5)),
+            onTertiaryContainer = Color(ColorMath.ensureContrast(p2.shade(0.25f, 0.97f), tertiaryContainer, 4.5)),
             background = Color(bg),
-            onBackground = Color(n.D_ON),
+            onBackground = Color(p.shade(0.02f, 0.97f)),
             surface = Color(bg),
-            onSurface = Color(n.D_ON),
-            surfaceVariant = tint(n.D_VARIANT, 0.05f),
-            onSurfaceVariant = Color(n.D_ON_VARIANT),
+            onSurface = Color(p.shade(0.02f, 0.97f)),
+            surfaceVariant = Color(p.shade(0.7f, 0.24f)),
+            onSurfaceVariant = Color(p.shade(0.09f, 0.71f)),
             surfaceTint = Color(primary),
-            surfaceContainerLowest = Color(n.D_LOWEST),
-            surfaceContainerLow = tint(n.D_LOW, 0.05f),
-            surfaceContainer = tint(n.D_MID, 0.05f),
-            surfaceContainerHigh = tint(n.D_HIGH, 0.05f),
-            surfaceContainerHighest = tint(n.D_HIGHEST, 0.05f),
-            outline = Color(n.D_OUTLINE),
-            outlineVariant = Color(n.D_OUTLINE_VARIANT),
+            surfaceContainerLowest = Color(p.shade(0.6f, 0.05f)),
+            surfaceContainerLow = Color(p.shade(0.59f, 0.125f)),
+            surfaceContainer = Color(p.shade(0.6f, 0.16f)),
+            surfaceContainerHigh = Color(p.shade(0.58f, 0.19f)),
+            surfaceContainerHighest = Color(p.shade(0.55f, 0.23f)),
+            outline = Color(p.shade(0.18f, 0.52f)),
+            outlineVariant = Color(p.shade(0.47f, 0.26f)),
         )
     }
 }
@@ -233,6 +242,8 @@ data class ExtraColors(
     val priorityMedium: Color,
     val priorityLow: Color,
     val overdue: Color,
+    /** Completed counts and ticks. */
+    val success: Color,
     /** Focus progress ring; follows the accent. */
     val focus: Color,
     /** Break progress ring; follows the second accent. */
@@ -250,26 +261,27 @@ data class ExtraColors(
 }
 
 private val LightLists = listOf(
-    0xFFE8743B, 0xFF3567A8, 0xFF7A4EB3, 0xFFB0447A, 0xFFC0392B, 0xFFB86E00,
-    0xFF7C7A00, 0xFF3F7F2B, 0xFF00838F, 0xFF5C6B73, 0xFF8D6E63, 0xFF1E6B57,
+    0xFFE5484D, 0xFF3285E8, 0xFF079B48, 0xFF1FA587, 0xFFB44FD6, 0xFFD8960F,
+    0xFFE86C2C, 0xFF6B7280, 0xFF0F8FA8, 0xFF8B5CF6, 0xFFD6336C, 0xFF5B7F2B,
 ).map(::Color)
 
 private val DarkLists = listOf(
-    0xFFFFB38A, 0xFF9DC1FF, 0xFFD3B8FF, 0xFFFFAFD4, 0xFFFF8A7A, 0xFFFFB86F,
-    0xFFDCD86A, 0xFFA5D98E, 0xFF7FD8E2, 0xFFB7C6CE, 0xFFD7BBB2, 0xFF8CD5BB,
+    0xFFFF777D, 0xFF64B5FF, 0xFF45E88A, 0xFF5FD8BD, 0xFFD18BFF, 0xFFFFC45C,
+    0xFFFF9A6A, 0xFFB0B8C4, 0xFF5CD0E8, 0xFFB8A6FF, 0xFFFF80AB, 0xFFA8D96A,
 ).map(::Color)
 
 private fun extraColors(scheme: ColorScheme, dark: Boolean) = ExtraColors(
-    priorityHigh = if (dark) Color(0xFFFF8A7A) else Color(0xFFC0392B),
-    priorityMedium = if (dark) Color(0xFFFFB86F) else Color(0xFFB86E00),
-    priorityLow = if (dark) Color(0xFF9DC1FF) else Color(0xFF3567A8),
-    overdue = if (dark) Color(0xFFFFB4AB) else Color(0xFFB3261E),
+    priorityHigh = if (dark) Color(0xFFFF777D) else Color(0xFFE5484D),
+    priorityMedium = if (dark) Color(0xFFFFC45C) else Color(0xFFD8960F),
+    priorityLow = if (dark) Color(0xFF64B5FF) else Color(0xFF3285E8),
+    overdue = if (dark) Color(0xFFFF777D) else Color(0xFFE5484D),
+    success = if (dark) Color(0xFF45E88A) else Color(0xFF078C43),
     focus = scheme.primary,
     breakTime = scheme.tertiary,
     lists = if (dark) DarkLists else LightLists,
 )
 
-val LocalExtraColors = staticCompositionLocalOf { extraColors(schemeFromSeed(AppTheme.APRICOT.seed, false), false) }
+val LocalExtraColors = staticCompositionLocalOf { extraColors(schemeFromSeed(AppTheme.EMERALD.seed, false), false) }
 
 /** What components need to know to draw themselves over a wallpaper. */
 @Immutable
@@ -277,7 +289,9 @@ data class AppearanceState(
     val appearance: Appearance = Appearance(),
     val dark: Boolean = false,
     /** Opaque page colour; the real background when a wallpaper hides the scheme's one. */
-    val pageColor: Color = Color(Neutrals.L_BG),
+    val pageColor: Color = Color.White,
+    /** Final (non-animating) page colour, used for work that should not repeat during a theme fade. */
+    val pageTarget: Color = pageColor,
 ) {
     val hasWallpaper: Boolean get() = appearance.hasWallpaper
     val glass: Boolean get() = appearance.hasWallpaper && appearance.glassCards
@@ -306,9 +320,9 @@ val AppTypography = Base.copy(
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(24.dp),
 )
 
 // ---------------------------------------------------------------------------------------------
@@ -335,12 +349,24 @@ fun TickTheme(
     }
     val scheme = target.animated()
     val page = scheme.background
+
+    // Status-bar and navigation-bar icons follow the app's own light/dark choice,
+    // not the system's, so the clock stays readable when the two differ.
+    val view = LocalView.current
+    val activity = LocalActivity.current
+    if (!view.isInEditMode && activity != null) {
+        SideEffect {
+            val controller = WindowCompat.getInsetsController(activity.window, view)
+            controller.isAppearanceLightStatusBars = !dark
+            controller.isAppearanceLightNavigationBars = !dark
+        }
+    }
     // Over a wallpaper, screens and app bars become transparent. Dialogs, menus,
     // sheets and cards use the surfaceContainer roles, which stay opaque.
     val finalScheme = if (appearance.hasWallpaper) scheme.copy(background = Color.Transparent, surface = Color.Transparent) else scheme
     CompositionLocalProvider(
         LocalExtraColors provides extraColors(scheme, dark),
-        LocalAppearance provides AppearanceState(appearance, dark, page),
+        LocalAppearance provides AppearanceState(appearance, dark, page, target.background),
     ) {
         MaterialTheme(colorScheme = finalScheme, typography = AppTypography, shapes = AppShapes, content = content)
     }

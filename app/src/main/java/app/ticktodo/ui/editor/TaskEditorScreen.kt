@@ -95,7 +95,17 @@ import app.ticktodo.ui.common.formatDate
 import app.ticktodo.ui.common.formatRecurrence
 import app.ticktodo.ui.common.formatReminder
 import app.ticktodo.ui.common.formatTime
+import app.ticktodo.ui.matrix.Quadrant
 import app.ticktodo.ui.tasks.priorityLabel
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextOverflow
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -124,26 +134,25 @@ fun TaskEditorScreen(
     }
 
     LaunchedEffect(state.notFound) { if (state.notFound) onClose() }
-    val saveAndClose = { viewModel.save(onClose) }
-    BackHandler(onBack = saveAndClose)
+    var confirmLeave by remember { mutableStateOf(false) }
+    // Back never saves silently: unsaved edits get a choice instead.
+    val requestClose = { if (state.hasChanges) confirmLeave = true else onClose() }
+    BackHandler(onBack = requestClose)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { },
                 navigationIcon = {
-                    IconButton(onClick = saveAndClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_save_and_close)) }
+                    IconButton(onClick = requestClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back)) }
                 },
                 actions = {
-                    state.original?.let { task ->
-                        IconButton(onClick = viewModel::toggleCompleted) {
-                            Icon(
-                                if (task.isCompleted) Icons.Outlined.TaskAlt else Icons.Outlined.Done,
-                                stringResource(if (task.isCompleted) R.string.a11y_mark_incomplete else R.string.a11y_mark_complete),
-                            )
-                        }
-                    }
                     IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, stringResource(R.string.action_delete)) }
+                    Button(onClick = { viewModel.save(onClose) }, modifier = Modifier.padding(end = 8.dp)) {
+                        Icon(Icons.Outlined.Save, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.action_save))
+                    }
                 },
             )
         },
@@ -168,33 +177,77 @@ fun TaskEditorScreen(
                 )
 
                 if (!state.isSubtask) {
-                    EditorRow(
-                        icon = Icons.Outlined.CalendarToday,
-                        label = stringResource(R.string.field_due_date),
-                        value = form.dueDate?.let { formatDate(it, state.today) } ?: stringResource(R.string.value_none),
-                        onClick = { showDate = true },
-                        onClear = if (form.dueDate != null) ({ viewModel.setDueDate(null) }) else null,
-                    )
-                    if (form.dueDate != null) {
-                        EditorRow(
+                    SectionTitle(stringResource(R.string.field_subtasks))
+                    state.subtasks.forEach { sub ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = sub.isCompleted, onCheckedChange = { viewModel.toggleSubtask(sub.id, sub.isCompleted) })
+                            Text(
+                                sub.title,
+                                modifier = Modifier.weight(1f).clickable { onOpenTask(sub.id) },
+                                textDecoration = if (sub.isCompleted) TextDecoration.LineThrough else null,
+                            )
+                            IconButton(onClick = { viewModel.deleteSubtask(sub.id) }) {
+                                Icon(Icons.Outlined.Close, stringResource(R.string.action_delete_subtask, sub.title))
+                            }
+                        }
+                    }
+                    AddSubtaskField(viewModel::addSubtask)
+                }
+
+                if (!state.isSubtask) {
+                    val hasDate = form.dueDate != null
+                    // Date and time, then reminder and repeat, then list: details set together sit together.
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FieldTile(
+                            icon = Icons.Outlined.CalendarToday,
+                            label = stringResource(R.string.field_due_date),
+                            value = form.dueDate?.let { formatDate(it, state.today) } ?: stringResource(R.string.value_none),
+                            onClick = { showDate = true },
+                            onClear = if (hasDate) ({ viewModel.setDueDate(null) }) else null,
+                            modifier = Modifier.weight(1f),
+                        )
+                        FieldTile(
                             icon = Icons.Outlined.AccessTime,
                             label = stringResource(R.string.field_time),
-                            value = form.dueTime?.let { formatTime(it) } ?: stringResource(R.string.value_all_day),
+                            value = form.dueTime?.let { formatTime(it) } ?: stringResource(if (hasDate) R.string.value_all_day else R.string.value_none),
                             onClick = { showTime = true },
                             onClear = if (form.dueTime != null) ({ viewModel.setDueTime(null) }) else null,
+                            enabled = hasDate,
+                            modifier = Modifier.weight(1f),
                         )
-                        ReminderRow(form.reminderOffset) { offset ->
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ReminderRow(form.reminderOffset, enabled = hasDate, modifier = Modifier.weight(1f)) { offset ->
                             viewModel.setReminder(offset)
                             if (offset != null && !notificationsOk && ReminderPermissions.canRequestNotificationsAtRuntime()) {
                                 notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             }
                         }
-                        if (form.reminderOffset != null && (!notificationsOk || !exactOk)) {
-                            ReminderWarning(notificationsOk, exactOk)
-                        }
-                        RepeatRow(form.recurrence, viewModel::setRecurrence)
+                        RepeatRow(form.recurrence, enabled = hasDate, modifier = Modifier.weight(1f), onSelect = viewModel::setRecurrence)
                     }
-                    ListRow(state.lists.map { it.id to it.name }, form.listId, viewModel::setList)
+                    if (!hasDate) {
+                        Text(
+                            stringResource(R.string.editor_needs_date),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                    if (form.reminderOffset != null && (!notificationsOk || !exactOk)) {
+                        ReminderWarning(notificationsOk, exactOk)
+                    }
+                    ListRow(
+                        state.lists.map { it.id to it.name },
+                        form.listId,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                        onSelect = viewModel::setList,
+                    )
                 }
 
                 SectionTitle(stringResource(R.string.field_priority))
@@ -207,6 +260,12 @@ fun TaskEditorScreen(
                         ) { Text(priorityLabel(p), maxLines = 1) }
                     }
                 }
+                Text(
+                    stringResource(Quadrant.of(form.priority).meaning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
 
                 if (!state.isSubtask) {
                     SectionTitle(stringResource(R.string.field_tags))
@@ -232,28 +291,17 @@ fun TaskEditorScreen(
                     minLines = 3,
                 )
 
-                if (!state.isSubtask) {
-                    SectionTitle(stringResource(R.string.field_subtasks))
-                    state.subtasks.forEach { sub ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(checked = sub.isCompleted, onCheckedChange = { viewModel.toggleSubtask(sub.id, sub.isCompleted) })
-                            Text(
-                                sub.title,
-                                modifier = Modifier.weight(1f).clickable { onOpenTask(sub.id) },
-                                textDecoration = if (sub.isCompleted) TextDecoration.LineThrough else null,
-                            )
-                            IconButton(onClick = { viewModel.deleteSubtask(sub.id) }) {
-                                Icon(Icons.Outlined.Close, stringResource(R.string.action_delete_subtask, sub.title))
-                            }
-                        }
+                state.original?.let { task ->
+                    OutlinedButton(
+                        // Saves pending edits first so completing never loses them.
+                        onClick = { viewModel.save { viewModel.toggleCompleted() } },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp).heightIn(min = 48.dp),
+                    ) {
+                        Icon(if (task.isCompleted) Icons.Outlined.TaskAlt else Icons.Outlined.Done, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(if (task.isCompleted) R.string.a11y_mark_incomplete else R.string.a11y_mark_complete))
                     }
-                    AddSubtaskField(viewModel::addSubtask)
                 }
-
-                Spacer(Modifier.height(24.dp))
                 state.original?.let { task ->
                     Text(
                         stringResource(if (task.pendingSync) R.string.editor_pending_sync else R.string.editor_synced),
@@ -268,6 +316,24 @@ fun TaskEditorScreen(
 
     if (showDate) DatePickerModal(form.dueDate ?: state.today, viewModel::setDueDate) { showDate = false }
     if (showTime) TimePickerModal(form.dueTime, { viewModel.setDueTime(it) }) { showTime = false }
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text(stringResource(R.string.editor_unsaved_title)) },
+            text = { Text(stringResource(R.string.editor_unsaved_body)) },
+            confirmButton = {
+                TextButton(onClick = { confirmLeave = false; viewModel.save(onClose) }) { Text(stringResource(R.string.editor_save_and_leave)) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { confirmLeave = false }) { Text(stringResource(R.string.editor_keep_editing)) }
+                    TextButton(onClick = { confirmLeave = false; onClose() }) {
+                        Text(stringResource(R.string.editor_discard), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+        )
+    }
     if (confirmDelete) {
         ConfirmDialog(
             title = stringResource(R.string.confirm_delete_task_title),
@@ -280,24 +346,47 @@ fun TaskEditorScreen(
     }
 }
 
+/** A compact, tappable field: icon, label and value, with an optional clear button. */
 @Composable
-private fun EditorRow(icon: ImageVector, label: String, value: String, onClick: () -> Unit, onClear: (() -> Unit)?) {
-    ListItem(
-        modifier = Modifier.clickable(onClick = onClick),
-        leadingContent = { Icon(icon, null) },
-        headlineContent = { Text(label) },
-        supportingContent = { Text(value) },
-        trailingContent = onClear?.let {
-            { IconButton(onClick = it) { Icon(Icons.Outlined.Clear, stringResource(R.string.action_clear_field, label)) } }
-        },
-    )
+private fun FieldTile(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    onClear: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val alpha = if (enabled) 1f else 0.45f
+    GlassSurface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = modifier.clip(MaterialTheme.shapes.medium).clickable(enabled = enabled, onClick = onClick),
+    ) {
+        Row(
+            Modifier.heightIn(min = 64.dp).padding(start = 12.dp).graphicsLayer { this.alpha = alpha },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f).padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Text(value, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (onClear != null && enabled) {
+                IconButton(onClick = onClear) { Icon(Icons.Outlined.Clear, stringResource(R.string.action_clear_field, label), Modifier.size(18.dp)) }
+            } else {
+                Spacer(Modifier.width(12.dp))
+            }
+        }
+    }
 }
 
 @Composable
-private fun ReminderRow(current: Int?, onSelect: (Int?) -> Unit) {
+private fun ReminderRow(current: Int?, enabled: Boolean, modifier: Modifier = Modifier, onSelect: (Int?) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    Box {
-        EditorRow(
+    Box(modifier) {
+        FieldTile(
+            enabled = enabled,
             icon = Icons.Outlined.Notifications,
             label = stringResource(R.string.field_reminder),
             value = current?.let { formatReminder(it) } ?: stringResource(R.string.value_none),
@@ -331,7 +420,7 @@ private fun ReminderWarning(notificationsOk: Boolean, exactOk: Boolean) {
 }
 
 @Composable
-private fun RepeatRow(current: Recurrence?, onSelect: (Recurrence?) -> Unit) {
+private fun RepeatRow(current: Recurrence?, enabled: Boolean, modifier: Modifier = Modifier, onSelect: (Recurrence?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val options = listOf(
         Recurrence(Recurrence.Frequency.DAILY),
@@ -341,8 +430,9 @@ private fun RepeatRow(current: Recurrence?, onSelect: (Recurrence?) -> Unit) {
         Recurrence(Recurrence.Frequency.MONTHLY),
         Recurrence(Recurrence.Frequency.YEARLY),
     )
-    Box {
-        EditorRow(
+    Box(modifier) {
+        FieldTile(
+            enabled = enabled,
             icon = Icons.Outlined.Repeat,
             label = stringResource(R.string.field_repeat),
             value = current?.let { formatRecurrence(it) } ?: stringResource(R.string.repeat_never),
@@ -359,10 +449,11 @@ private fun RepeatRow(current: Recurrence?, onSelect: (Recurrence?) -> Unit) {
 }
 
 @Composable
-private fun ListRow(lists: List<Pair<String, String>>, current: String?, onSelect: (String?) -> Unit) {
+private fun ListRow(lists: List<Pair<String, String>>, current: String?, modifier: Modifier = Modifier, onSelect: (String?) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    Box {
-        EditorRow(
+    Box(modifier) {
+        FieldTile(
+            modifier = Modifier.fillMaxWidth(),
             icon = Icons.Outlined.Inbox,
             label = stringResource(R.string.field_list),
             value = lists.firstOrNull { it.first == current }?.second ?: stringResource(R.string.scope_inbox),

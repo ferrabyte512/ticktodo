@@ -49,6 +49,8 @@ data class TaskEntity(
     val serverUpdatedAt: Long?,
     /** Encoded FocusPlan; null when the task does not use a focus timer. Synced. */
     val focusPlan: String? = null,
+    /** Position in "My order"; smaller comes first. Null means "by creation time, newest first". Synced. */
+    val sortOrder: Double? = null,
     /** Local only: snoozed reminder time. */
     val snoozedUntil: Long? = null,
     /** Local only: trigger time of the last reminder shown, to avoid repeats. */

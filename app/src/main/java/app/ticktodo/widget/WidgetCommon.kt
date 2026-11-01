@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.LocalSize
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.CheckBox
@@ -54,6 +55,7 @@ interface WidgetEntryPoint {
     fun clock(): Clock
     fun repository(): TaskRepository
     fun focus(): FocusManager
+    fun settings(): app.ticktodo.data.settings.SettingsRepository
 }
 
 fun widgetEntry(context: Context): WidgetEntryPoint =
@@ -106,14 +108,20 @@ fun WidgetHeader(context: Context, title: String, subtitle: String?, showAdd: Bo
             }
         }
         if (showAdd) {
+            // Narrow widgets get a round "+" so the title keeps its room.
+            val compact = LocalSize.current.width < 220.dp
             Box(
                 GlanceModifier
                     .background(GlanceTheme.colors.primary)
                     .cornerRadius(20.dp)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .padding(horizontal = if (compact) 12.dp else 14.dp, vertical = 8.dp)
                     .clickable(actionStartActivity(openAppIntent(context, MainActivity.ACTION_QUICK_ADD))),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(context.getString(R.string.widget_add), style = TextStyle(fontWeight = FontWeight.Bold, color = GlanceTheme.colors.onPrimary))
+                Text(
+                    if (compact) "+" else context.getString(R.string.widget_add),
+                    style = TextStyle(fontWeight = FontWeight.Bold, fontSize = if (compact) 16.sp else 14.sp, color = GlanceTheme.colors.onPrimary),
+                )
             }
         }
     }

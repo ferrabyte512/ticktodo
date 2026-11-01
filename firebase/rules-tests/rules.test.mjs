@@ -80,7 +80,7 @@ test('owner can create a fully populated task', async () => {
   await assertSucceeds(setDoc(taskRef(alice()), task({
     listId: LIST_ID, priority: 3, notes: 'line 1\nline 2', dueEpochDay: 20_000, dueMinuteOfDay: 9 * 60,
     reminderOffsetMinutes: 15, recurrence: 'FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE', tags: ['home', 'errands'],
-    focusPlan: 'f=25;s=5;l=15;r=4;n=4;ab=1;af=0', completed: true, completedAt: 1_700_000_100_000,
+    focusPlan: 'f=25;s=5;ab=1;af=0', sortOrder: 12.5, completed: true, completedAt: 1_700_000_100_000,
   })));
 });
 
@@ -176,6 +176,11 @@ test('rejects oversized notes, too many tags and bad priority', async () => {
 test('rejects a malformed focus plan', async () => {
   await assertFails(setDoc(taskRef(alice()), task({ focusPlan: 'x'.repeat(61) })));
   await assertFails(setDoc(taskRef(alice()), task({ focusPlan: 25 })));
+});
+
+test('accepts a manual sort position and rejects a non-numeric one', async () => {
+  await assertSucceeds(setDoc(taskRef(alice()), task({ sortOrder: -1_700_000_000_000.5 })));
+  await assertFails(setDoc(taskRef(alice()), task({ sortOrder: 'first' })));
 });
 
 test('rejects an id that does not match the document path', async () => {

@@ -11,6 +11,7 @@ import app.ticktodo.testing.FakeSession
 import app.ticktodo.testing.RecordingEffects
 import app.ticktodo.testing.inMemoryDb
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Test
@@ -91,6 +92,36 @@ class TaskRepositoryTest {
         assertEquals(listOf("Report"), repo.observeScope(TaskScope.Inbox, today).first().map { it.task.title })
     }
 
+    @Test fun `finishing the last task of a list or of the day is celebrated`() = runBlocking<Unit> {
+        val celebrations = app.ticktodo.ui.common.Celebrations(db, session, clock)
+        val events = mutableListOf<app.ticktodo.ui.common.Celebration>()
+        val job = launch(kotlinx.coroutines.Dispatchers.Unconfined) { celebrations.events.collect { events += it } }
+
+        val list = repo.createList("Work", 2)
+        val first = repo.create(TaskDraft("Report", listId = list))
+        val second = repo.create(TaskDraft("Slides", listId = list))
+        repo.setCompleted(first, true); celebrations.afterCompletion(first)
+        assertTrue(events.isEmpty())
+        repo.setCompleted(second, true); celebrations.afterCompletion(second)
+        assertEquals(listOf<app.ticktodo.ui.common.Celebration>(app.ticktodo.ui.common.Celebration.ListDone("Work")), events)
+
+        val today1 = repo.create(TaskDraft("Call", dueDate = today))
+        repo.create(TaskDraft("Tomorrow", dueDate = today.plusDays(1)))
+        repo.setCompleted(today1, true); celebrations.afterCompletion(today1)
+        assertEquals(app.ticktodo.ui.common.Celebration.DayDone, events.last())
+        job.cancel()
+    }
+
+    @Test fun `inbox differs from all tasks only while an open task is in a list`() = runBlocking<Unit> {
+        repo.create(TaskDraft("Loose"))
+        val list = repo.createList("Work", 2)
+        assertEquals(false, repo.observeHasListedTasks().first())
+        val id = repo.create(TaskDraft("Report", listId = list))
+        assertEquals(true, repo.observeHasListedTasks().first())
+        repo.setCompleted(id, true)
+        assertEquals(false, repo.observeHasListedTasks().first())
+    }
+
     @Test fun `search treats wildcards literally`() = runBlocking<Unit> {
         repo.create(TaskDraft("50% off sale"))
         repo.create(TaskDraft("500 emails"))
@@ -106,7 +137,7 @@ class TaskRepositoryTest {
     }
 
     @Test fun `upgrading database rows keeps focus plan support`() = runBlocking<Unit> {
-        val plan = app.ticktodo.domain.focus.FocusPlan(15, 3, 10, 4, 4)
+        val plan = app.ticktodo.domain.focus.FocusPlan(15, 3)
         val id = repo.create(TaskDraft("Read", focusPlan = plan))
         val t = repo.observeTask(id).first()!!
         assertEquals(plan, t.focusPlan)

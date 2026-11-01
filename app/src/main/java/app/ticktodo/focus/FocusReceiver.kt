@@ -25,6 +25,7 @@ class FocusReceiver : BroadcastReceiver() {
                     ACTION_PHASE_END -> manager.onPhaseTimeUp()
                     ACTION_PAUSE -> manager.pause()
                     ACTION_RESUME -> manager.resume()
+                    ACTION_EXTEND -> manager.extend()
                     ACTION_SKIP -> manager.skip()
                     ACTION_STOP -> manager.stop()
                 }
@@ -40,6 +41,7 @@ class FocusReceiver : BroadcastReceiver() {
         const val ACTION_PHASE_END = "app.ticktodo.action.FOCUS_PHASE_END"
         const val ACTION_PAUSE = "app.ticktodo.action.FOCUS_PAUSE"
         const val ACTION_RESUME = "app.ticktodo.action.FOCUS_RESUME"
+        const val ACTION_EXTEND = "app.ticktodo.action.FOCUS_EXTEND"
         const val ACTION_SKIP = "app.ticktodo.action.FOCUS_SKIP"
         const val ACTION_STOP = "app.ticktodo.action.FOCUS_STOP"
     }

@@ -6,10 +6,10 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [TaskEntity::class, TaskListEntity::class, SyncStateEntity::class, FocusSessionEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    // v2: tasks.focusPlan column and the focus_sessions table.
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    // v2: tasks.focusPlan column and the focus_sessions table. v3: tasks.sortOrder column.
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao

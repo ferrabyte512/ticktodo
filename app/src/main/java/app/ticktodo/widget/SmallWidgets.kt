@@ -5,6 +5,8 @@ import android.content.Intent
 import android.text.format.DateFormat
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -79,9 +81,12 @@ class QuickAddWidgetReceiver : GlanceAppWidgetReceiver() {
  */
 class FocusWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val state = widgetEntry(context).focus().state.value
-        val now = System.currentTimeMillis()
-        provideContent { GlanceTheme { FocusContent(context, state, now) } }
+        val flow = widgetEntry(context).focus().state
+        provideContent {
+            // Collected live, so start/pause/stop show up while the widget session is open.
+            val state by flow.collectAsState()
+            GlanceTheme { FocusContent(context, state, System.currentTimeMillis()) }
+        }
     }
 
     @androidx.compose.runtime.Composable

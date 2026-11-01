@@ -25,14 +25,14 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
  * Built-in accent palettes. Stored by name; existing names are kept so saved
  * choices survive updates (JADE is shown as "Sage", SUNSET as "Terracotta").
  */
-enum class AppTheme { JADE, OCEAN, SUNSET, LAVENDER, ROSE, GRAPHITE, APRICOT, HONEY }
+enum class AppTheme { JADE, OCEAN, SUNSET, LAVENDER, ROSE, GRAPHITE, APRICOT, HONEY, LAGOON, EMERALD }
 
 /** Background behind every screen. Built-ins are drawn in code; PHOTO is the user's own picture. */
 enum class Wallpaper { NONE, PEACH_GLOW, MOUNTAINS, DUNES, SEA_MIST, FOREST, WAVES, AURORA, GRADIENT, PHOTO }
 
 /** All visual customisation in one value, so the theme can be built from it in one place. */
 data class Appearance(
-    val accent: AppTheme = AppTheme.APRICOT,
+    val accent: AppTheme = AppTheme.EMERALD,
     /** ARGB; overrides [accent] when set. */
     val customAccent: Int? = null,
     val wallpaper: Wallpaper = Wallpaper.NONE,
@@ -63,8 +63,6 @@ data class Appearance(
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = false,
-    /** Reminder time for tasks that have a date but no time, in minutes after midnight. */
-    val defaultReminderMinute: Int = 9 * 60,
     val sort: TaskSort = TaskSort.DUE_DATE,
     val askedNotificationPermission: Boolean = false,
     val defaultFocusPlan: FocusPlan = FocusPlan.DEFAULT,
@@ -80,7 +78,6 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
     private object Keys {
         val theme = stringPreferencesKey("theme")
         val dynamic = booleanPreferencesKey("dynamic_color")
-        val reminderMinute = intPreferencesKey("default_reminder_minute")
         val sort = stringPreferencesKey("sort")
         val askedNotifications = booleanPreferencesKey("asked_notifications")
         val appTheme = stringPreferencesKey("app_theme")
@@ -100,12 +97,11 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
         AppSettings(
             themeMode = p[Keys.theme]?.let { v -> ThemeMode.entries.firstOrNull { it.name == v } } ?: ThemeMode.SYSTEM,
             dynamicColor = p[Keys.dynamic] ?: false,
-            defaultReminderMinute = (p[Keys.reminderMinute] ?: (9 * 60)).coerceIn(0, 1_439),
             sort = p[Keys.sort]?.let { v -> TaskSort.entries.firstOrNull { it.name == v } } ?: TaskSort.DUE_DATE,
             askedNotificationPermission = p[Keys.askedNotifications] ?: false,
             defaultFocusPlan = FocusPlan.parse(p[Keys.focusPlan]) ?: FocusPlan.DEFAULT,
             appearance = Appearance(
-                accent = p[Keys.appTheme]?.let { v -> AppTheme.entries.firstOrNull { it.name == v } } ?: AppTheme.APRICOT,
+                accent = p[Keys.appTheme]?.let { v -> AppTheme.entries.firstOrNull { it.name == v } } ?: AppTheme.EMERALD,
                 customAccent = p[Keys.customAccent],
                 wallpaper = p[Keys.wallpaper]?.let { v -> Wallpaper.entries.firstOrNull { it.name == v } } ?: Wallpaper.NONE,
                 gradientStart = p[Keys.gradientStart] ?: Appearance().gradientStart,
@@ -123,8 +119,6 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
 
     suspend fun setThemeMode(mode: ThemeMode) = context.dataStore.edit { it[Keys.theme] = mode.name }
     suspend fun setDynamicColor(enabled: Boolean) = context.dataStore.edit { it[Keys.dynamic] = enabled }
-    suspend fun setDefaultReminderMinute(minute: Int) =
-        context.dataStore.edit { it[Keys.reminderMinute] = minute.coerceIn(0, 1_439) }
     suspend fun setSort(sort: TaskSort) = context.dataStore.edit { it[Keys.sort] = sort.name }
     /** Picking a preset clears any custom accent. */
     /** Choosing an accent also turns off wallpaper colours, which would otherwise hide it. */

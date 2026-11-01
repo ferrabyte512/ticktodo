@@ -18,10 +18,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -54,6 +52,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -96,6 +98,10 @@ fun TaskRow(
     modifier: Modifier = Modifier,
     onStartFocus: (() -> Unit)? = null,
     focusing: Boolean = false,
+    /** Drag handle shown in "My order"; see Reorder.kt. */
+    dragHandle: (@Composable () -> Unit)? = null,
+    /** Extra screen-reader actions, such as "Move up" and "Move down" in "My order". */
+    extraActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val task = item.task
     val extra = LocalExtraColors.current
@@ -191,19 +197,29 @@ fun TaskRow(
                         add(CustomAccessibilityAction(completeLabel) { onToggleComplete(); true })
                         add(CustomAccessibilityAction(deleteLabel) { onDelete(); true })
                         if (onStartFocus != null) add(CustomAccessibilityAction(focusLabel) { onStartFocus(); true })
+                        addAll(extraActions)
                     }
                 },
         ) {
-            Row(Modifier.height(IntrinsicSize.Min).heightIn(min = 76.dp), verticalAlignment = Alignment.CenterVertically) {
-                // Priority mark: a short rounded pill inset from the card edge.
-                Box(
-                    Modifier
-                        .padding(start = 6.dp, top = 16.dp, bottom = 16.dp)
-                        .width(4.dp)
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(priorityColor ?: Color.Transparent),
-                )
+            Row(
+                Modifier
+                    .heightIn(min = 76.dp)
+                    // Priority mark: a short rounded pill inset from the card edge. Drawn rather than
+                    // laid out, so the row does not need intrinsic height (which miscounts wrapped chips).
+                    .drawBehind {
+                        val color = priorityColor ?: return@drawBehind
+                        val inset = 16.dp.toPx()
+                        if (size.height <= inset * 2) return@drawBehind
+                        drawRoundRect(
+                            color = color,
+                            topLeft = Offset(6.dp.toPx(), inset),
+                            size = Size(4.dp.toPx(), size.height - inset * 2),
+                            cornerRadius = CornerRadius(2.dp.toPx()),
+                        )
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Spacer(Modifier.width(10.dp))
                 IconButton(
                     onClick = tapCheck,
                     modifier = Modifier.padding(start = 2.dp).size(56.dp).semantics { contentDescription = "$completeLabel: ${task.title}" },
@@ -251,9 +267,10 @@ fun TaskRow(
                     ) {
                         Icon(Icons.Rounded.PlayArrow, contentDescription = "$focusLabel: ${task.title}")
                     }
-                } else {
+                } else if (dragHandle == null) {
                     Spacer(Modifier.width(12.dp))
                 }
+                dragHandle?.invoke()
             }
         }
     }

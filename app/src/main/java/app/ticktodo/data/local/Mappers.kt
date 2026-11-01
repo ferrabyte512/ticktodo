@@ -22,6 +22,7 @@ fun TaskEntity.toDomain(): Task = Task(
     recurrence = Recurrence.parse(recurrenceRule),
     tags = TagCodec.decode(tags),
     focusPlan = FocusPlan.parse(focusPlan),
+    sortOrder = sortOrder,
     isCompleted = completed,
     completedAt = completedAt,
     createdAt = createdAt,

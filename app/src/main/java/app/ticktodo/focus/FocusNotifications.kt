@@ -40,8 +40,7 @@ object FocusNotifications {
     fun phaseLabel(context: Context, phase: FocusPhase): String = context.getString(
         when (phase) {
             FocusPhase.FOCUS -> R.string.focus_phase_focus
-            FocusPhase.SHORT_BREAK -> R.string.focus_phase_short_break
-            FocusPhase.LONG_BREAK -> R.string.focus_phase_long_break
+            FocusPhase.SHORT_BREAK, FocusPhase.LONG_BREAK -> R.string.focus_phase_short_break
         },
     )
 
@@ -53,9 +52,7 @@ object FocusNotifications {
             return
         }
         if (!Notifications.canPost(context)) return
-        val plan = state.decodedPlan
-        val roundText = plan.totalRounds?.let { context.getString(R.string.focus_round_of, state.round, it) }
-            ?: context.getString(R.string.focus_round, state.round)
+        val roundText = context.getString(R.string.focus_round, state.round)
         val remaining = state.remainingMs(now)
         val builder = NotificationCompat.Builder(context, CHANNEL_TIMER)
             .setSmallIcon(R.drawable.ic_notification)
@@ -84,7 +81,8 @@ object FocusNotifications {
                 .setShowWhen(false)
                 .addAction(0, context.getString(R.string.focus_resume), action(context, FocusReceiver.ACTION_RESUME))
         }
-        builder.addAction(0, context.getString(R.string.focus_skip), action(context, FocusReceiver.ACTION_SKIP))
+        // Android shows at most three buttons; Skip stays available on the focus screen.
+        builder.addAction(0, context.getString(R.string.focus_extend), action(context, FocusReceiver.ACTION_EXTEND))
             .addAction(0, context.getString(R.string.focus_stop), action(context, FocusReceiver.ACTION_STOP))
         try {
             nm.notify(ONGOING_ID, builder.build())

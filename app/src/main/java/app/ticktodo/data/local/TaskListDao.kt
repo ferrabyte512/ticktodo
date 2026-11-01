@@ -14,6 +14,9 @@ interface TaskListDao {
     suspend fun all(uid: String): List<TaskListEntity>
 
     @Query("SELECT * FROM task_lists WHERE ownerUid = :uid AND id = :id")
+    fun observe(uid: String, id: String): Flow<TaskListEntity?>
+
+    @Query("SELECT * FROM task_lists WHERE ownerUid = :uid AND id = :id")
     suspend fun get(uid: String, id: String): TaskListEntity?
 
     @Upsert

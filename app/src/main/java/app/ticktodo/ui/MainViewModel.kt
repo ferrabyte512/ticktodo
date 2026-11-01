@@ -8,6 +8,8 @@ import app.ticktodo.data.settings.AppSettings
 import app.ticktodo.data.settings.SettingsRepository
 import app.ticktodo.domain.focus.FocusState
 import app.ticktodo.focus.FocusManager
+import app.ticktodo.ui.common.Celebration
+import app.ticktodo.ui.common.Celebrations
 import app.ticktodo.ui.common.UiMessage
 import app.ticktodo.ui.common.UiMessenger
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,10 +25,12 @@ class MainViewModel @Inject constructor(
     settings: SettingsRepository,
     messenger: UiMessenger,
     focus: FocusManager,
+    celebrations: Celebrations,
 ) : ViewModel() {
     val focusState: StateFlow<FocusState?> = focus.state
     val authState: StateFlow<AuthState> = auth.state
     val settings: StateFlow<AppSettings?> = settings.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val messages: SharedFlow<UiMessage> = messenger.messages
+    val celebrations: SharedFlow<Celebration> = celebrations.events
 }

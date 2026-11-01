@@ -15,6 +15,7 @@ import app.ticktodo.di.ApplicationScope
 import app.ticktodo.focus.FocusManager
 import app.ticktodo.focus.FocusNotifications
 import app.ticktodo.reminders.Notifications
+import app.ticktodo.reminders.ReminderScheduler
 import app.ticktodo.sync.SyncScheduler
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
@@ -35,6 +36,7 @@ class TickToDoApp : Application(), Configuration.Provider {
     @Inject lateinit var accountService: Lazy<AccountService>
     @Inject lateinit var syncScheduler: Lazy<SyncScheduler>
     @Inject lateinit var focusManager: Lazy<FocusManager>
+    @Inject lateinit var reminders: Lazy<ReminderScheduler>
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
 
     override val workManagerConfiguration: Configuration
@@ -68,7 +70,12 @@ class TickToDoApp : Application(), Configuration.Provider {
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 scope.launch {
-                    if (session.get().uid.value != null) syncScheduler.get().requestSync(delaySeconds = 0)
+                    if (session.get().uid.value != null) {
+                        syncScheduler.get().requestSync(delaySeconds = 0)
+                        // A force-stop (or an aggressive battery manager) drops the app's alarms;
+                        // opening the app puts them back.
+                        reminders.get().rescheduleAll()
+                    }
                 }
             }
         })

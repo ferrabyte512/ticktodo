@@ -66,11 +66,6 @@ class SettingsViewModel @Inject constructor(
     fun setDefaultFocusPlan(plan: FocusPlan) = viewModelScope.launch { settingsRepository.setDefaultFocusPlan(plan) }
     fun setDynamicColor(enabled: Boolean) = viewModelScope.launch { settingsRepository.setDynamicColor(enabled) }
 
-    fun setDefaultReminderMinute(minute: Int) = viewModelScope.launch {
-        settingsRepository.setDefaultReminderMinute(minute)
-        reminders.rescheduleAll()
-    }
-
     fun syncNow() = syncScheduler.requestSync(delaySeconds = 0)
 
     /** Re-arms alarms after the user granted a permission. */

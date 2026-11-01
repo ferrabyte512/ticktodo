@@ -143,8 +143,8 @@ class ReminderMathTest {
 
 class TaskGroupingTest {
     private val today = LocalDate.of(2026, 10, 21)
-    private fun item(id: String, due: LocalDate?, priority: Priority = Priority.NONE, created: Long = 0) = TaskItem(
-        Task(id, null, null, id, "", priority, due, null, null, null, emptyList(), null, false, null, created, created, false), 0, 0,
+    private fun item(id: String, due: LocalDate?, priority: Priority = Priority.NONE, created: Long = 0, order: Double? = null) = TaskItem(
+        Task(id, null, null, id, "", priority, due, null, null, null, emptyList(), null, false, null, created, created, false, sortOrder = order), 0, 0,
     )
 
     @Test fun `today view splits overdue from today`() {
@@ -161,6 +161,31 @@ class TaskGroupingTest {
             TaskSort.DUE_DATE,
         )
         assertEquals(listOf(today.plusDays(1), today.plusDays(3)), sections.map { (it.header as SectionHeader.Day).date })
+    }
+
+    @Test fun `my order puts never-moved tasks newest first, moved tasks by position`() {
+        val sorted = TaskGrouping.sort(
+            listOf(item("old", null, created = 1_000), item("new", null, created = 2_000), item("pinned", null, created = 0, order = -5_000.0)),
+            TaskSort.MANUAL,
+        )
+        assertEquals(listOf("pinned", "new", "old"), sorted.map { it.task.id })
+    }
+
+    @Test fun `dropping between two tasks changes only the moved task`() {
+        val a = item("a", null, order = 0.0); val b = item("b", null, order = 100.0); val c = item("c", null, order = 200.0)
+        // c dragged between a and b.
+        assertEquals(mapOf("c" to 50.0), TaskGrouping.manualOrderUpdates(listOf(a, c, b), "c"))
+        // a dragged to the bottom, b to the top.
+        assertEquals(60_200.0, TaskGrouping.manualOrderUpdates(listOf(b, c, a), "a")["a"]!!, 0.0)
+        assertEquals(listOf("b"), TaskGrouping.manualOrderUpdates(listOf(b, a, c), "b").keys.toList())
+        assert(TaskGrouping.manualOrderUpdates(listOf(b, a, c), "b")["b"]!! < 0.0)
+    }
+
+    @Test fun `neighbours with no room between them renumber the section in its new order`() {
+        val a = item("a", null, order = 1.0); val b = item("b", null, order = 1.0); val c = item("c", null, order = 1.0)
+        val updates = TaskGrouping.manualOrderUpdates(listOf(a, c, b), "c")
+        val reordered = TaskGrouping.sort(listOf(a, b, c).map { it.copy(task = it.task.copy(sortOrder = updates[it.task.id])) }, TaskSort.MANUAL)
+        assertEquals(listOf("a", "c", "b"), reordered.map { it.task.id })
     }
 
     @Test fun `priority sort puts high first`() {
