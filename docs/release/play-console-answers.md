@@ -22,7 +22,7 @@ or feature changes.
 |---|---|
 | App icon 512×512 | `ic_launcher_512.png` (rendered from the adaptive icon by `LauncherIconExportTest`) |
 | Feature graphic 1024×500 | `feature_graphic_1024x500.png` |
-| Phone screenshots (1080×1920) | `01_today_dark.png` … `10_add_task_light.png` (use 6–8; put `01`, `07`, `03`, `04`, `05`, `02` first) |
+| Phone screenshots (1080×1920) | `01_today_dark.png` … `08_appearance_dark.png`, upload all eight in order (captioned cards; raw captures in `raw/`) |
 | Listing text | `store-listing.md` |
 
 ## App content → declarations
