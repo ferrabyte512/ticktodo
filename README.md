@@ -385,6 +385,11 @@ npm test
 | `docs/release/signing.md` | Upload key creation, storage and verification |
 | `docs/release/launch-readiness.md` | Verification status of every launch criterion |
 | `docs/known-limitations.md` | What the app deliberately does not do yet |
+| `docs/release/final-validation.md` | Final pre-upload validation report (device, widgets, security, performance) |
+| `docs/release/two-device-test.md` | Physical two-device synchronisation procedure |
+| `docs/release/play-console-answers.md` | Exact answers for every Play Console form |
+| `docs/release/access.md` | Who holds which account, and where the encrypted backups are |
+| `docs/legal/delete-account.md` | Account-deletion page published for Play's deletion requirement |
 
 ---
 
